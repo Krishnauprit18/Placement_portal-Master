@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Result Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background-color: #f0f0f0;
+            position: "relative";
+        }
+        .question-item {
+            background: #fff;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .question-item label {
+            display: block;
+            margin-top: 10px;
+        }
+        .correct {
+            color: green;
+        }
+        .wrong {
+            color: red;
+        }
+        .back-button{
+            position: "absolute";
+            top: 20px;
+            left: 20px;
+            background-color: #007bff;
+            color: while;
+            border: none;
+            padding: 10px, 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .back-button:hover{
+                background-color: #0056b3;
+        }
+        .recommendations-section {
+            background: linear-gradient(135deg, #fff3cd 0%, #f8f9fa 100%);
+            border: 2px solid #28a745;
+            border-radius: 15px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0px 5px 20px rgba(0, 0, 0, 0.15);
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .recommendations-section h2 {
+            color: #155724;
+            margin-bottom: 20px;
+            font-size: 24px;
+            text-align: center;
+            border-bottom: 2px solid #28a745;
+            padding-bottom: 10px;
+        }
+        .recommendations-intro {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #155724;
+            font-weight: 500;
+        }
+        .recommended-question {
+            background: #ffffff;
+            border: 1px solid #28a745;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0px 3px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+        .recommended-question:hover {
+            transform: translateY(-2px);
+            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .recommended-question h4 {
+            color: #28a745;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-left: 4px solid #28a745;
+            padding-left: 10px;
+        }
+        .concept-tag {
+            background: #28a745;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+        .question-options {
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .correct-answer-highlight {
+            background: #d4edda;
+            color: #155724;
+            font-weight: bold;
+            padding: 8px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .score-summary {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border: 2px solid #2196f3;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            box-shadow: 0px 3px 15px rgba(0, 0, 0, 0.1);
+        }
+        .score-summary h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+        .submit-all-btn {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 20px 0;
+        }
+        .submit-all-btn:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <button onCLick = "goBackToDashboard()">Back to Dashboard</button>
+    <h1>Questions <small id="questionType"></small></h1>
+    <div id="questionsContainer"></div>
+    <button id="submitAllBtn" class="submit-all-btn" onclick="submitAllAnswers()" style="display:none;">Submit All Answers</button>
+    <div id="recommendationsSection" class="recommendations-section" style="display:none;">
+    <h2>Recommended Questions for You</h2>
+        <p>Based on the questions you got wrong, here are some prerequisite topics you should practice:</p>
+        <div id="recommendedQuestions"></div>
+    </div>
+
+    <script>
+        let questionsData = [];
+        let hasSubmittedAll = false;
+
+        function getQueryParameter(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        function submitAnswer(questionIndex, correctAnswer) {
+            const selectedOption = document.querySelector(`#question-item-${questionIndex} input[type="radio"]:checked`);
+
+            if (selectedOption) {
+                const selectedValue = selectedOption.value;
+                const statusDiv = document.getElementById(`status-${questionIndex}`);
+
+                if (selectedValue === correctAnswer) {
+                    statusDiv.innerHTML = `<span class="correct">Correct Answer</span>`;
+                } else {
+                    statusDiv.innerHTML = `<span class="wrong">Wrong Answer</span> <br> Correct Answer: ${correctAnswer}`;
+                }
+            } else {
+                alert(`Please select an answer for question ${questionIndex + 1}`);
+            }
+        }
+
+        function submitAllAnswers() {
+            const answers = [];
+            let allAnswered = true;
+
+            // Collect all answers
+            questionsData.forEach((_, index) => {
+                const selectedOption = document.querySelector(`#question-item-${index} input[type="radio"]:checked`);
+                if (selectedOption) {
+                    answers.push(parseInt(selectedOption.value));
+                } else {
+                    allAnswered = false;
+                }
+            });
+
+            if (!allAnswered) {
+                alert('Please answer all questions before submitting.');
+                return;
+            }
+
+            const questionType = getQueryParameter('question_type');
+
+            fetch('/submitAnswers', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ answers, questionType })
+            })
+            .then(response => response.json())
+            .then(data => {
+                hasSubmittedAll = true;
+                
+                // Update individual question results
+                if (data.evaluationResults) {
+                    data.evaluationResults.forEach(result => {
+                        const statusDiv = document.getElementById(`status-${result.questionIndex}`);
+                        if (result.isCorrect) {
+                            statusDiv.innerHTML = `<span class="correct">Correct Answer</span>`;
+                        } else {
+                            statusDiv.innerHTML = `<span class="wrong">Wrong Answer</span> <br> Correct Answer: ${result.correctAnswer}`;
+                        }
+                    });
+                }
+
+                // Hide submit button and show resubmit options
+                document.getElementById('submitAllBtn').style.display = 'none';
+                
+                // Show resubmit options
+                const resubmitBtn = document.getElementById('resubmitBtn');
+                const clearBtn = document.getElementById('clearAnswersBtn');
+                
+                if (resubmitBtn) {
+                    resubmitBtn.style.display = 'inline-block';
+                    resubmitBtn.textContent = 'Resubmit Answers';
+                    resubmitBtn.disabled = false;
+                }
+                if (clearBtn) {
+                    clearBtn.style.display = 'inline-block';
+                }
+                
+                console.log('Submission complete. Resubmit options now available.');
+
+                // Count correct and wrong answers
+                const correctCount = data.evaluationResults.filter(result => result.isCorrect).length;
+                const wrongCount = data.evaluationResults.length - correctCount;
+                const totalQuestions = data.evaluationResults.length;
+                const scorePercentage = ((correctCount / totalQuestions) * 100).toFixed(1);
+
+                // Show score summary
+                showScoreSummary(correctCount, totalQuestions, scorePercentage, data.summary);
+
+                // Show AI-powered recommendations if any
+                if (data.recommendations && data.recommendations.length > 0) {
+                    displayRecommendations(data.recommendations, wrongCount, data.aiInsights);
+                } else if (wrongCount > 0) {
+                    showNoRecommendationsMessage(wrongCount, data.aiInsights);
+                } else {
+                    showPerfectScoreMessage();
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting answers:', error);
+                alert('Error submitting answers. Please try again.');
+                
+                // Reset button states on error
+                const resubmitBtn = document.getElementById('resubmitBtn');
+                if (resubmitBtn) {
+                    resubmitBtn.textContent = 'Resubmit Answers';
+                    resubmitBtn.disabled = false;
+                    resubmitBtn.style.display = 'inline-block';
+                }
+            });
+        }
+
+        function showScoreSummary(correctCount, totalQuestions, scorePercentage, summary) {
+            const scoreHTML = `
+                <div class="score-summary">
+                    <h3>Your Test Results</h3>
+                    <p><strong>Score: ${correctCount}/${totalQuestions} (${scorePercentage}%)</strong></p>
+                    ${scorePercentage >= 80 ? 
+                        '<p style="color: #28a745;">Excellent performance!</p>' : 
+                        scorePercentage >= 60 ? 
+                        '<p style="color: #ffc107;">Good job! Room for improvement.</p>' : 
+                        '<p style="color: #dc3545;">Keep practicing to improve your score.</p>'
+                    }
+                    ${summary ? `<p><small>Knowledge Graph analyzed ${summary.recommendationsCount || 0} prerequisite recommendations from concept dependencies</small></p>` : ''}
+                </div>
+            `;
+            
+            const questionsContainer = document.getElementById('questionsContainer');
+            questionsContainer.insertAdjacentHTML('afterend', scoreHTML);
+        }
+
+        function displayRecommendations(recommendations, wrongCount, aiInsights) {
+            const recommendedQuestionsDiv = document.getElementById('recommendedQuestions');
+            
+            if (recommendations.length === 0) {
+                recommendedQuestionsDiv.innerHTML = '<p>No prerequisite questions available at this time.</p>';
+                return;
+            }
+
+            // Group by concept name for better organization
+            const conceptGroups = {};
+            recommendations.forEach(rec => {
+                const conceptName = rec.concept_name || 'General Topics';
+                if (!conceptGroups[conceptName]) {
+                    conceptGroups[conceptName] = {
+                        name: conceptName,
+                        description: rec.concept_description || '',
+                        questions: []
+                    };
+                }
+                conceptGroups[conceptName].questions.push(rec);
+            });
+
+            const recommendationsHTML = Object.values(conceptGroups).map((concept, conceptIndex) => {
+                const questionsHTML = concept.questions.map((rec, questionIndex) => {
+                    return `
+                        <div class="recommended-question" style="margin-left: 20px; border-left: 3px solid #007bff; padding-left: 15px; margin-bottom: 15px;">
+                            <h4>Practice Question ${questionIndex + 1}</h4>
+                            <p><strong>Q:</strong> ${rec.question}</p>
+                            <div class="question-options">
+                                <p><strong>Options:</strong></p>
+                                <ul>
+                                    <li>1) ${rec.option1}</li>
+                                    <li>2) ${rec.option2}</li>
+                                    <li>3) ${rec.option3}</li>
+                                    <li>4) ${rec.option4}</li>
+                                </ul>
+                            </div>
+                            <div class="correct-answer-highlight">
+                                <strong>Correct Answer:</strong> Option ${rec.correctAnswer}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="concept-section" style="margin-bottom: 30px; background: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 5px solid #28a745;">
+                        <div class="concept-header">
+                            <h3>Prerequisite Concept: ${concept.name}</h3>
+                            ${concept.description ? `<p style="color: #666; margin: 5px 0 15px 0;"><em>${concept.description}</em></p>` : ''}
+                            <p><strong>Why practice this?</strong> Mastering "${concept.name}" will help you understand the advanced topics you struggled with.</p>
+                        </div>
+                        ${questionsHTML}
+                    </div>
+                `;
+            }).join('');
+
+            // Create AI Insights section
+            let aiInsightsHTML = '';
+            if (aiInsights && aiInsights.length > 0) {
+                const insightsHTML = aiInsights.map(insight => `
+                    <div style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin: 15px 0; border-left: 4px solid #2196f3;">
+                        <h4>AI Tutor Insights: ${insight.failedConcept?.name || 'Your Failed Topic'}</h4>
+                        <div style="line-height: 1.6; color: #333;">
+                            ${insight.insights}
+                        </div>
+                    </div>
+                `).join('');
+                
+                aiInsightsHTML = `
+                    <div style="margin: 20px 0;">
+                        <h3>Personalized Learning Insights from Gemini AI</h3>
+                        ${insightsHTML}
+                    </div>
+                `;
+            }
+
+            const sectionContent = `
+                <h2>AI-Enhanced Knowledge Graph Recommendations</h2>
+                <div class="recommendations-intro">
+                    <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #28a745;">
+                        <h4>Smart Learning Path Generated!</h4>
+                        <p><strong>Analysis:</strong> You got ${wrongCount} question(s) wrong on advanced topics.</p>
+                        <p><strong>Solution:</strong> Our Knowledge Graph identified ${recommendations.length} prerequisite questions from foundational concepts that these advanced topics depend on.</p>
+                        
+                        <p><strong>How this helps:</strong> Master these simpler concepts first -> Build strong foundation -> Retry original questions with better understanding!</p>
+                    </div>
+                    
+                    ${aiInsightsHTML}
+                    
+                    <h3>Practice These Prerequisites First:</h3>
+                </div>
+                <div id="recommendedQuestions">${recommendationsHTML}</div>
+                
+                <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #ffc107;">
+                    <p><strong>Next Steps:</strong></p>
+                    <ol>
+                        <li>Read the AI tutor insights above for personalized learning tips</li>
+                        <li>Practice the prerequisite questions below</li>
+                        <li>Make sure you understand why each answer is correct</li>
+                        <li>Retake the original ${wrongCount > 1 ? 'questions' : 'question'} to see your improvement</li>
+                    </ol>
+                </div>
+            `;
+
+            document.getElementById('recommendationsSection').innerHTML = sectionContent;
+            document.getElementById('recommendationsSection').style.display = 'block';
+        }
+
+        function showNoRecommendationsMessage(wrongCount, aiInsights) {
+            // Create AI Insights section for failed concepts
+            let aiInsightsHTML = '';
+            if (aiInsights && aiInsights.length > 0) {
+                const insightsHTML = aiInsights.map(insight => `
+                    <div style="background: #e3f2fd; padding: 15px; border-radius: 10px; margin: 15px 0; border-left: 4px solid #2196f3;">
+                        <h4>AI Tutor Insights: ${insight.failedConcept?.name || 'Your Failed Topic'}</h4>
+                        <div style="line-height: 1.6; color: #333;">
+                            ${insight.insights}
+                        </div>
+                    </div>
+                `).join('');
+                
+                aiInsightsHTML = `
+                    <div style="margin: 20px 0;">
+                        <h3>Personalized Learning Insights from Gemini AI</h3>
+                        ${insightsHTML}
+                    </div>
+                `;
+            }
+
+            const sectionContent = `
+                <h2>AI-Enhanced Knowledge Graph Analysis</h2>
+                <div class="recommendations-intro">
+                    <p><strong>Analysis Complete:</strong> You got ${wrongCount} question(s) wrong.</p>
+                    
+                    ${aiInsightsHTML}
+                    
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #007bff;">
+                        <h4>What our Knowledge Graph discovered:</h4>
+                        <p>The questions you missed are currently not linked to our prerequisite knowledge graph, or no foundational questions exist for the failed concepts yet.</p>
+                        
+                        <p><strong>How the AI-Enhanced Knowledge Graph works:</strong></p>
+                        <ul>
+                            <li>Advanced topics (like Dynamic Programming) depend on simpler ones (like Recursion)</li>
+                            <li>When you fail an advanced question, we recommend practice on prerequisite concepts</li>
+                            <li>Our Gemini AI provides personalized learning insights for each failed concept</li>
+                            <li>This creates an intelligent learning path based on concept dependencies + AI tutoring</li>
+                        </ul>
+                    </div>
+                    
+                    <p><strong>For now:</strong> ${aiInsights && aiInsights.length > 0 ? 'Follow the AI tutor insights above and' : ''} Review the correct answers above and practice similar questions. As more prerequisite questions are added to our knowledge graph, you'll receive smarter recommendations!</p>
+                </div>
+            `;
+            document.getElementById('recommendationsSection').innerHTML = sectionContent;
+            document.getElementById('recommendationsSection').style.display = 'block';
+        }
+
+        function showPerfectScoreMessage() {
+            const sectionContent = `
+                <h2>Perfect Score!</h2>
+                <div class="recommendations-intro">
+                    <strong>Congratulations!</strong> You answered all questions correctly. Your understanding of this topic is excellent!
+                    <br><br>
+                    <strong>Next Step:</strong> Try more advanced topics or help others learn by sharing your knowledge.
+                </div>
+            `;
+            document.getElementById('recommendationsSection').innerHTML = sectionContent;
+            document.getElementById('recommendationsSection').style.display = 'block';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const questionType = getQueryParameter('question_type');
+            document.getElementById('questionType').innerText = `(${questionType})`;
+
+            fetch(`/questions/${questionType}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        questionsData = data;
+                        const questionsHTML = data.map((questionData, index) => {
+                            const { id, question, option1, option2, option3, option4, correctAnswer } = questionData;
+                            return `
+                                <div class="question-item" id="question-item-${index}">
+                                    <p><strong>Question ${index + 1}:</strong> ${question}</p>
+                                    <label>
+                                        <input type="radio" name="question${index}" value="1" onchange="handleAnswerChange(${index})">
+                                        1) ${option1}
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="question${index}" value="2" onchange="handleAnswerChange(${index})">
+                                        2) ${option2}
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="question${index}" value="3" onchange="handleAnswerChange(${index})">
+                                        3) ${option3}
+                                    </label>
+                                    <label>
+                                        <input type="radio" name="question${index}" value="4" onchange="handleAnswerChange(${index})">
+                                        4) ${option4}
+                                    </label><br>
+                                    <div id="status-${index}" style="margin-top: 10px;"></div>
+                                </div>
+                            `;
+                        }).join('');
+
+                        document.getElementById('questionsContainer').innerHTML = questionsHTML;
+                        document.getElementById('submitAllBtn').style.display = 'block';
+                    } else {
+                        console.error('No questions found.');
+                    }
+                })
+                .catch(error => console.error('Error fetching questions:', error));
+        });
+
+        function goBackToDashboard(){
+            window.location.href = '/studentdashboard';
+        }
+        
+        function handleAnswerChange(questionIndex) {
+            console.log('Answer changed for question:', questionIndex, 'Has submitted:', hasSubmittedAll);
+            
+            if (hasSubmittedAll) {
+                // Show resubmit button when user changes answers after submission
+                const resubmitBtn = document.getElementById('resubmitBtn');
+                const clearBtn = document.getElementById('clearAnswersBtn');
+                
+                if (resubmitBtn) resubmitBtn.style.display = 'inline-block';
+                if (clearBtn) clearBtn.style.display = 'inline-block';
+                
+                // Clear specific question status or all if no questionIndex provided
+                if (questionIndex !== undefined) {
+                    const statusDiv = document.getElementById(`status-${questionIndex}`);
+                    if (statusDiv) {
+                        statusDiv.innerHTML = '<span style="color: orange; font-weight: bold;">Answer changed - click Resubmit to update results</span>';
+                    }
+                } else {
+                    // Clear all question statuses
+                    questionsData.forEach((_, index) => {
+                        const statusDiv = document.getElementById(`status-${index}`);
+                        if (statusDiv) {
+                            statusDiv.innerHTML = '<span style="color: orange; font-weight: bold;">Answer changed - click Resubmit to update results</span>';
+                        }
+                    });
+                }
+                
+                // Hide recommendations until resubmitted
+                const recommendationsSection = document.getElementById('recommendationsSection');
+                if (recommendationsSection && recommendationsSection.style.display !== 'none') {
+                    recommendationsSection.innerHTML = '<div style="text-align: center; padding: 20px; background: #fff3cd; border-radius: 10px; border-left: 4px solid #ffc107;"><h3 style="color: #856404;">Answers Changed</h3><p style="color: #856404; font-size: 16px;">You have modified your answers. Please click <strong>"Resubmit Answers"</strong> to see updated results and recommendations.</p></div>';
+                }
+            }
+        }
+        
+        function resubmitAnswers() {
+            console.log('Starting resubmission process...');
+            
+            // Show loading state
+            const resubmitBtn = document.getElementById('resubmitBtn');
+            if (resubmitBtn) {
+                resubmitBtn.textContent = 'Resubmitting...';
+                resubmitBtn.disabled = true;
+            }
+            
+            // Clear previous results
+            questionsData.forEach((_, index) => {
+                const statusDiv = document.getElementById(`status-${index}`);
+                if (statusDiv) {
+                    statusDiv.innerHTML = '<span style="color: #6c757d;">Evaluating...</span>';
+                }
+            });
+            
+            // Clear score summary
+            const existingScoreSummary = document.querySelector('.score-summary');
+            if (existingScoreSummary) {
+                existingScoreSummary.remove();
+            }
+            
+            // Hide recommendations section
+            const recommendationsSection = document.getElementById('recommendationsSection');
+            if (recommendationsSection) {
+                recommendationsSection.style.display = 'none';
+            }
+            
+            // Reset submission state temporarily
+            hasSubmittedAll = false;
+            
+            // Hide resubmit buttons
+            document.getElementById('resubmitBtn').style.display = 'none';
+            document.getElementById('clearAnswersBtn').style.display = 'none';
+            
+            // Submit the new answers
+            submitAllAnswers();
+        }
+        
+        function clearAllAnswers() {
+            // Clear all radio button selections
+            questionsData.forEach((_, index) => {
+                const radioButtons = document.querySelectorAll(`input[name="question${index}"]`);
+                radioButtons.forEach(radio => {
+                    radio.checked = false;
+                });
+                // Clear status
+                document.getElementById(`status-${index}`).innerHTML = '';
+            });
+            
+            // Clear score summary
+            const existingScoreSummary = document.querySelector('.score-summary');
+            if (existingScoreSummary) {
+                existingScoreSummary.remove();
+            }
+            
+            // Hide recommendations section
+            document.getElementById('recommendationsSection').style.display = 'none';
+            
+            // Reset state
+            hasSubmittedAll = false;
+            originalSubmissionResults = null;
+            
+            // Show only submit button
+            document.getElementById('submitAllBtn').style.display = 'inline-block';
+            document.getElementById('resubmitBtn').style.display = 'none';
+            document.getElementById('clearAnswersBtn').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

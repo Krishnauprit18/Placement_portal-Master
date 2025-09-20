@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faculty Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('https://res.cloudinary.com/dsox9poty/image/upload/v1716082684/cgl4odix03jdy8e7oilv.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed; /* prevent stretching on content resize */
+            padding: 20px;
+        }
+
+        .logout-button {
+            background: #d9534f;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            transition: background 0.3s ease;
+        }
+        .logout-button:hover {
+            background: #c9302c;
+        }
+        
+        .container {
+            text-align: center;
+            color: #ddd; 
+        }
+        .faculty-heading {
+            font-size: 40px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color:antiquewhite; 
+            text-shadow: 2px 2px 4px rgba(93, 89, 89, 0.451);
+        }
+          .faculty-name {
+            font-size: 24px;
+            text-align: center;
+            margin-bottom: 30px;
+            color:antiquewhite; 
+            text-shadow: 2px 2px 4px rgba(93, 89, 89, 0.451);
+        }
+
+        /* Button Styles */
+        .button-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .button {
+            background-color: #555;
+            color: #fff;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .button:hover {
+            background-color: #777;
+            transform: scale(1.05);
+        }
+
+
+         /* Improved Submissions List */
+         .submissions-list {
+            text-align: left;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 700px;
+            margin: 0 auto;
+            display: none;
+        }
+
+        .submission-item {
+            background-color: rgba(255, 255, 255, 0.2);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .submission-item p {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .download-button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .download-button:hover {
+            background-color: #0056b3;
+        }
+
+
+        
+        .subject-boxes {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .subject-box {
+            display: inline-block;
+            width: calc(20% - 20px);
+            height: 120px;
+            margin: 10px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: left;
+            vertical-align: top;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(5px);
+            border-radius: 15px; 
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease; 
+        }
+        .subject-box:hover {
+            transform: scale(1.05); 
+        }
+        .upload-button {
+            display: block;
+            margin-top: 10px;
+            text-align: center;
+            background: #555; 
+            color: #fff; 
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+        .upload-button:hover {
+            background: #777; 
+        }
+
+        /* Professional News Section */
+        .news-section {
+            max-width: 800px;
+            margin: 40px auto 20px auto;
+            background: rgba(255, 255, 255, 0.18); /* glassy */
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 16px;
+            box-shadow: 0 10px 35px rgba(0, 0, 0, 0.25);
+            -webkit-backdrop-filter: blur(12px) saturate(120%);
+            backdrop-filter: blur(12px) saturate(120%);
+            overflow: hidden;
+            background-clip: padding-box;
+        }
+        .news-header {
+            background: linear-gradient(135deg, rgba(13,110,253,0.95), rgba(91,141,239,0.95));
+            color: #fff;
+            padding: 18px 24px;
+            text-align: left;
+        }
+        .news-header h2 {
+            margin: 0;
+            font-size: 22px;
+            letter-spacing: 0.3px;
+        }
+        .news-body {
+            padding: 20px 24px 24px 24px;
+            color: #1f2937; /* stays readable on glass */
+            text-align: left;
+        }
+        /* Center form and prevent dashboard stretch */
+        .news-body form { max-width: 680px; margin: 0 auto; }
+        .form-row { margin-bottom: 16px; }
+        .form-row label { display: block; font-weight: 600; margin-bottom: 6px; color: #222; }
+        .input, .textarea {
+            width: 100%;
+            border: 1.5px solid rgba(255,255,255,0.55);
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 15px;
+            background: rgba(255,255,255,0.85);
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.04);
+            transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+        }
+        .input:focus, .textarea:focus { outline: none; border-color: #0d6efd; box-shadow: 0 0 0 3px rgba(13,110,253,0.15); }
+    .textarea { min-height: 110px; resize: vertical; }
+        .input::placeholder, .textarea::placeholder { color: rgba(55,65,81,0.6); }
+        .field-meta { display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-top: 6px; }
+        .btn-primary {
+            background: #0d6efd;
+            color: #fff;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background .2s ease, transform .05s ease;
+        }
+        .btn-primary:hover { background: #0b5ed7; }
+        .btn-primary:active { transform: translateY(1px); }
+    .feedback { margin-top: 10px; font-size: 14px; display: none; }
+    .feedback.success { color: #0f5132; background: rgba(209,231,221,0.85); border: 1px solid rgba(186,219,204,0.9); padding: 10px 12px; border-radius: 8px; display: block; backdrop-filter: blur(6px); }
+    .feedback.error { color: #842029; background: rgba(248,215,218,0.85); border: 1px solid rgba(245,194,199,0.9); padding: 10px 12px; border-radius: 8px; display: block; backdrop-filter: blur(6px); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2 class="faculty-heading">Welcome To Faculty Dashboard</h2>
+        <button class="logout-button" onclick="window.location.href='/logout'">Logout</button>
+        <p class="faculty-name" id="facultyName">Hi <span id="userNamePlaceholder"></span></p>
+
+        <!-- Quick Action Buttons -->
+        <div class="button-container" style="margin-bottom: 30px;">
+            <button class="button" onclick="window.location.href='/concept-management'" style="background-color: #28a745; font-size: 18px; padding: 15px 30px;">
+                Manage Concepts & Prerequisites
+            </button>
+        </div>
+
+        <div class="subject-boxes"> 
+            <div class="subject-box">
+                <p style="color: #333;">CS_00 - Logical</p>
+                <button class="upload-button" onclick="openUploadWindow('Logical', 'CS_00')">Upload Questions</button>
+            </div>
+            
+            <div class="subject-box">
+                <p style="color: #333;">CS_01 - Verbal</p>
+                <button class="upload-button" onclick="openUploadWindow('Verbal', 'CS_01')">Upload Questions</button>
+            </div>
+            <div class="subject-box">
+                <p style="color: #333;">CS_02 - Aptitude</p>
+                <button class="upload-button" onclick="openUploadWindow('Aptitude', 'CS_02')">Upload Questions</button>
+            </div>
+            <div class="subject-box">
+                <p style="color: #333;">CS_03 - C++</p>
+                <button class="upload-button" onclick="openUploadWindow('C++', 'CS_03')">Upload Questions</button>
+            </div>
+            <div class="subject-box">
+                <p style="color: #333;">CS_04 - Python</p>
+                <button class="upload-button" onclick="openUploadWindow('Python', 'CS_04')">Upload Questions</button>
+            </div>
+
+            <div class="subject-box">
+                <p style="color: #333;">CS_05 - Digital Logic and design</p>
+                <button class="upload-button" onclick="openUploadWindow('Digital Logic and Design', 'CS_05')">Upload Questions</button>
+            </div>
+
+            <div class="subject-box">
+                <p style="color: #333;">CS_06 - Data extraction and processing</p>
+                <button class="upload-button" onclick="openUploadWindow('Data extraction and processing', 'CS_06')">Upload Questions</button>
+            </div>
+
+            <div class="subject-box">
+                <p style="color: #333;">CS_07 - Computer Networks</p>
+                <button class="upload-button" onclick="openUploadWindow('Computer Networks', 'CS_07')">Upload Questions</button>
+            </div>
+            <div class="subject-box">
+                <p style="color: #333;">CS_08 - Data Structures and Algorithms</p>
+                <button class="upload-button" onclick="openUploadWindow('Data Structures and Algorithms', 'CS_08')">Upload Questions</button>
+            </div>
+
+            <div class="subject-box">
+                <p style="color: #333;">CS_09 - Design and Analysis of Algorithms</p>
+                <button class="upload-button" onclick="openUploadWindow('Design and Analysis of Algorithms', 'CS_09')">Upload Questions</button>
+            </div>
+             <div class="subject-box">
+                <p style="color: #333;">CS_10 - Database Management System</p>
+                <button class="upload-button" onclick="openUploadWindow('Database Management System', 'CS_10')">Upload Questions</button>
+            </div>
+
+            <div class="subject-box">
+                <p style="color: #333;">CS_11 - JAVA</p>
+                <button class="upload-button" onclick="openUploadWindow('JAVA', 'CS_11')">Upload Questions</button>
+            </div>
+
+            <div class="subject-box">
+                <p style="color: #333;">CS_12 - Web Programming</p>
+                <button class="upload-button" onclick="openUploadWindow('Web Programming', 'CS_12')">Upload Questions</button>
+            </div>
+
+            <div class="subject-box">
+                <p style="color: #333;">CS_13 - Theory of Computation</p>
+                <button class="upload-button" onclick="openUploadWindow('Theory of Computation', 'CS_13')">Upload Questions</button>
+            </div>
+
+            <div class="subject-box">
+                <p style="color: #333;">CS_14 - Computer Organization and Architecture</p>
+                <button class="upload-button" onclick="openUploadWindow('Computer Organization and Architecture', 'CS_14')">Upload Questions</button>
+            </div>
+
+            <div class="subject-box">
+                <p style="color: #333;">CS_15 - Operating System</p>
+                <button class="upload-button" onclick="openUploadWindow('Operating System', 'CS_15')">Upload Questions</button>
+            </div>
+            <div class="subject-box">
+                <p style="color: #333;">CS_16 - Compiler Design</p>
+                <button class="upload-button" onclick="openUploadWindow('Compiler Design', 'CS_16')">Upload Questions</button>
+            </div>
+
+            <div class="subject-box">
+                <p style="color: #333;">CS_17 - Discrete Maths</p>
+                <button class="upload-button" onclick="openUploadWindow('Discrete Maths', 'CS_17')">Upload Questions</button>
+            </div>
+            <div class="subject-box">
+                <p style="color: #333;">CS_18 - AI/ML</p>
+                <button class="upload-button" onclick="openUploadWindow('AI/ML', 'CS_18')">Upload Questions</button>
+            </div>
+            <div class="subject-box">
+                <p style="color: #333;">CS_19 - Distributed Computing</p>
+                <button class="upload-button" onclick="openUploadWindow('Distributed Computing', 'CS_19')">Upload Questions</button>
+            </div>
+
+            <div class="subject-box">
+                <p style="color: #333;">CS_20 - IOT and its applications</p>
+                <button class="upload-button" onclick="openUploadWindow('IOT and its applications', 'CS_20')">Upload Questions</button>
+            </div>
+            <div class="subject-box">
+                <p style="color: #333;">CS_21 - Microservices</p>
+                <button class="upload-button" onclick="openUploadWindow('Microservices', 'CS_21')">Upload Questions</button>
+            </div>
+            <div class="subject-box">
+                <p style="color: #333;">CS_22 - Cybersecurity</p>
+                <button class="upload-button" onclick="openUploadWindow('Cybersecurity', 'CS_22')">Upload Questions</button>
+            </div>
+            <div class="subject-box">
+                <p style="color: #333;">CS_23 - Algorithmic Trading</p>
+                <button class="upload-button" onclick="openUploadWindow('Algorithmic Trading', 'CS_23')">Upload Questions</button>
+            </div>
+            <div class="subject-box">
+                <p style="color: #333;">CS_24 - Android Application Development</p>
+                <button class="upload-button" onclick="openUploadWindow('Android Application Development', 'CS_24')">Upload Questions</button>
+            </div>
+        </div>
+        <div class="news-section">
+            <div class="news-header">
+                <h2>News & Announcements</h2>
+            </div>
+            <div class="news-body">
+                <form id="newsForm">
+                    <div class="form-row">
+                        <label for="title">Title</label>
+                        <input class="input" type="text" id="title" name="title" maxlength="120" placeholder="e.g., Placement Drive on 12th Oct" required>
+                        <div class="field-meta"><span>Short, clear headline</span><span id="titleCount">0/120</span></div>
+                    </div>
+                    <div class="form-row">
+                        <label for="description">Description</label>
+                        <textarea class="textarea" id="description" name="description" maxlength="1000" placeholder="Add details, date/time, venue, registration links, and contact info..." required></textarea>
+                        <div class="field-meta"><span>Include key details for students</span><span id="descCount">0/1000</span></div>
+                    </div>
+                    <button type="submit" id="newsSubmitBtn" class="btn-primary">Add News</button>
+                    <div id="newsFeedback" class="feedback" role="status" aria-live="polite"></div>
+                </form>
+            </div>
+        </div>
+        
+    </div>
+
+    <script>
+        let allConceptsForUpload = []; // Global variable to store concepts
+
+        function setUserName(name) {
+            document.getElementById('userNamePlaceholder').innerText = name;
+        }
+        
+        // Fetch user data and concepts on page load
+        fetch('/dashboard')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    setUserName(data.user.name);
+                } else {
+                    console.warn('Dashboard API error:', data.message);
+                    // Set a default name if user data is not available
+                    setUserName('Faculty User');
+                }
+            })
+            .catch(error => {
+                console.warn('Dashboard fetch error:', error);
+                // Set a default name if API call fails
+                setUserName('Faculty User');
+            });
+
+        // Fetch concepts for dropdown
+        function loadConcepts() {
+            console.log('Loading concepts for faculty dashboard...');
+            fetch('/concepts')
+                .then(response => {
+                    console.log('Concepts API response status:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Concepts API response:', data);
+                    if (data.success && data.concepts) {
+                        allConceptsForUpload = data.concepts;
+                        console.log(`Loaded ${allConceptsForUpload.length} concepts for upload dropdown`);
+                        addDefaultConceptsButton(); // Show helper button if no concepts
+                    } else {
+                        console.error('Failed to fetch concepts for upload:', data.message);
+                        allConceptsForUpload = []; // Ensure it's empty
+                        addDefaultConceptsButton(); // Show helper button
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching concepts for upload:', error);
+                    allConceptsForUpload = []; // Ensure it's empty
+                    addDefaultConceptsButton(); // Show helper button
+                });
+        }
+
+        // Load concepts when page loads
+        loadConcepts();
+
+        // Function to create default concepts if none exist
+        function createDefaultConcepts() {
+            const defaultConcepts = [
+                { name: 'Basic Programming', description: 'Fundamental programming concepts and syntax' },
+                { name: 'Arrays and Loops', description: 'Basic data structures and iteration constructs' },
+                { name: 'Functions and Procedures', description: 'Code organization and modular programming' },
+                { name: 'Recursion', description: 'Functions that call themselves with smaller problems' },
+                { name: 'Dynamic Programming', description: 'Advanced algorithmic technique using optimal substructure' },
+                { name: 'Data Structures', description: 'Advanced data organization techniques' },
+                { name: 'Algorithms', description: 'Problem-solving techniques and optimization' }
+            ];
+
+            defaultConcepts.forEach(concept => {
+                fetch('/concepts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(concept)
+                }).then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log(`Created default concept: ${concept.name}`);
+                    }
+                }).catch(error => console.log(`Concept ${concept.name} might already exist`));
+            });
+        }
+
+        // Add button to create default concepts
+        function addDefaultConceptsButton() {
+            if (allConceptsForUpload.length === 0) {
+                const buttonHtml = `
+                    <div style="text-align: center; margin: 20px 0; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px;">
+                        <p style="color: #fff; margin-bottom: 15px;">No concepts found! Create some default concepts first.</p>
+                        <button onclick="createDefaultConcepts(); setTimeout(loadConcepts, 1000);" 
+                                style="background: #ffc107; color: #000; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-weight: bold;">
+                            Create Default Concepts
+                        </button>
+                    </div>
+                `;
+                document.querySelector('.subject-boxes').insertAdjacentHTML('beforebegin', buttonHtml);
+            }
+        }
+
+
+        // Simple function to open upload page in new tab
+        function openUploadWindow(subject, subjectID) {
+            const uploadUrl = `/upload-questions?subject=${encodeURIComponent(subject)}&code=${encodeURIComponent(subjectID)}`;
+            console.log('Opening upload page:', uploadUrl);
+            window.open(uploadUrl, '_blank');
+        }
+        // News form enhancements
+        const newsForm = document.getElementById('newsForm');
+        const titleInput = document.getElementById('title');
+        const descInput = document.getElementById('description');
+        const titleCount = document.getElementById('titleCount');
+        const descCount = document.getElementById('descCount');
+        const newsFeedback = document.getElementById('newsFeedback');
+        const newsSubmitBtn = document.getElementById('newsSubmitBtn');
+
+        function updateCounts() {
+            titleCount.textContent = `${titleInput.value.length}/120`;
+            descCount.textContent = `${descInput.value.length}/1000`;
+        }
+        titleInput.addEventListener('input', updateCounts);
+        descInput.addEventListener('input', updateCounts);
+        updateCounts();
+
+        newsForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            newsFeedback.className = 'feedback';
+            newsFeedback.style.display = 'none';
+            newsSubmitBtn.disabled = true;
+            const originalText = newsSubmitBtn.textContent;
+            newsSubmitBtn.textContent = 'Posting...';
+
+            const formData = new FormData(newsForm);
+            fetch('/uploadNews', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        newsFeedback.textContent = 'News has been posted successfully.';
+                        newsFeedback.className = 'feedback success';
+                        newsFeedback.style.display = 'block';
+                        newsForm.reset();
+                        updateCounts();
+                    } else {
+                        newsFeedback.textContent = data.message || 'Failed to post news. Please try again.';
+                        newsFeedback.className = 'feedback error';
+                        newsFeedback.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error uploading news:', error);
+                    newsFeedback.textContent = 'Network error while posting news.';
+                    newsFeedback.className = 'feedback error';
+                    newsFeedback.style.display = 'block';
+                })
+                .finally(() => {
+                    newsSubmitBtn.disabled = false;
+                    newsSubmitBtn.textContent = originalText;
+                });
+        });
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Submissions</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .submission {
+            margin-bottom: 20px;
+        }
+        .download-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Submissions for Subject: <%= subject %></h1>
+
+    <% submissions.forEach(function(submission) { %>
+        <div class="submission">
+            <p>Student ID: <%= submission.student_id %></p>
+            <p>Uploaded At: <%= submission.uploaded_at %></p>
+            <a href="<%= submission.file_url %>" target="_blank">
+                <button class="download-button">Download Submission</button>
+            </a>
+        </div>
+    <% }); %>
+</body>
+</html>

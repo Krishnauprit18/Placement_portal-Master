@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard</title>
+    <style>
+        body {
+             font-family: Arial, sans-serif;
+             background-image: url('https://res.cloudinary.com/dfl7exztb/image/upload/v1716112094/seaw333c7yrbdfhbbv3t.jpg');
+             background-size: cover;
+             background-position: center;
+             background-repeat: no-repeat;
+             background-attachment: fixed; /* match faculty dashboard scrolling behavior */
+             padding: 20px;
+             color: #555;
+         }
+ 
+         .logout-button {
+             background: #d9534f;
+             color: #fff;
+             border: none;
+             padding: 10px 20px;
+             font-size: 16px;
+             cursor: pointer;
+             border-radius: 5px;
+             position: absolute;
+             top: 20px;
+             right: 20px;
+             transition: background 0.3s ease;
+         }
+         .logout-button:hover {
+             background: #c9302c;
+         }
+ 
+         .container {
+             max-width: 1200px;
+             margin: 0 auto;
+         }
+ 
+         .welcome-heading {
+             font-size: 32px;
+             font-weight: bold;
+             text-align: center;
+             margin-bottom: 20px;
+             color: antiquewhite; 
+             text-shadow: 2px 2px 4px rgba(93, 89, 89, 0.451);
+         }
+ 
+         .student-name {
+             font-size: 24px;
+             text-align: center;
+             margin-bottom: 30px;
+             color: antiquewhite; 
+             text-shadow: 2px 2px 4px rgba(93, 89, 89, 0.451);
+         }
+ 
+         .button-container {
+             text-align: center;
+             margin-bottom: 30px;
+         }
+ 
+         .styled-button {
+             background-color: #585c58;
+             border: none;
+             color: white;
+             padding: 15px 32px;
+             text-align: center;
+             text-decoration: none;
+             display: inline-block;
+             font-size: 16px;
+             margin: 4px 10px;
+             cursor: pointer;
+             border-radius: 5px;
+             transition: background-color 0.3s ease, transform 0.2s ease;
+             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+         }
+ 
+         .styled-button:hover {
+             background-color: #3f443f; 
+             transform: scale(1.05);
+         }
+ 
+         .latest-news {
+             border: 1px solid #ccc;
+             border-radius: 10px;
+             padding: 10px;
+             margin-bottom: 30px;
+             background: rgba(255, 255, 255, 0.8);
+             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+             animation: scrollNews 30s linear infinite;
+             overflow: hidden;
+             position: relative;
+         }
+         @keyframes scrollNews {
+             0% { transform: translateX(100%); }
+             100% { transform: translateX(-100%); }
+         }
+ 
+         .resume-section {
+             display: flex;
+             justify-content: space-between;
+             align-items: center;
+             border: 1px solid #ccc;
+             border-radius: 10px;
+             padding: 10px;
+             background: rgba(255, 255, 255, 0.8);
+             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+             margin-bottom: 30px;
+         }
+         .resume-heading {
+             font-size: 24px;
+             font-weight: bold;
+         }
+ 
+         .upload-button {
+             background-color: #555;
+             color: #fff;
+             border: none;
+             padding: 8px 16px;
+             border-radius: 5px;
+             cursor: pointer;
+             transition: background-color 0.3s ease, transform 0.2s ease;
+             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+         }
+         .upload-button:hover {
+             background-color: #777;
+             transform: scale(1.05);
+         }
+ 
+         /* New Styles for Available Question Papers Box */
+         .question-papers-box {
+             border: 1px solid #ccc;
+             border-radius: 15px;
+             padding: 20px;
+             background: rgba(255, 255, 255, 0.9);
+             box-shadow: 0px 0px 15px rgba(0, 0, 0, 0.2);
+             margin-bottom: 30px;
+         }
+ 
+         .question-papers-box h2 {
+             text-align: center;
+             margin-bottom: 20px;
+             color: #333;
+         }
+ 
+         .paper-list {
+             list-style-type: none;
+             padding: 0;
+             margin: 0;
+         }
+ 
+         .paper-item {
+             display: flex;
+             justify-content: space-between;
+             align-items: center;
+             background: #f9f9f9;
+             padding: 10px 15px;
+             margin-bottom: 10px;
+             border-radius: 8px;
+             transition: background 0.3s ease;
+         }
+ 
+         .paper-item:hover {
+             background: #e0e0e0;
+         }
+ 
+         .paper-item span {
+             font-size: 16px;
+             color: #333;
+         }
+ 
+         .download-button {
+             background-color: #007bff;
+             color: #fff;
+             border: none;
+             padding: 8px 14px;
+             border-radius: 5px;
+             cursor: pointer;
+             transition: background-color 0.3s ease;
+             font-size: 14px;
+         }
+ 
+         .download-button:hover {
+             background-color: #0056b3;
+         }
+ 
+         .upload-section {
+             text-align: center;
+             margin-bottom: 20px;
+         }
+
+         .remove-all-button {
+            background-color: #d9534f;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            margin-top: 20px; /* Adds some space above the button */
+        }
+
+        .remove-all-button:hover {
+            background-color: #c9302c;
+        }
+
+ 
+         /* Subject Boxes Styles */
+         .subject-boxes {
+             display: flex;
+             flex-wrap: wrap;
+             justify-content: center; /* match faculty dashboard alignment */
+         }
+ 
+         .subject-box {
+             display: inline-block;
+             width: calc(20% - 20px);
+             height: 120px;
+             margin: 10px;
+             border: 1px solid #ccc;
+             padding: 10px;
+             text-align: left;
+             vertical-align: top;
+             background: rgba(255, 255, 255, 0.3);
+             backdrop-filter: blur(5px);
+             border-radius: 15px; 
+             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+             transition: transform 0.2s ease; 
+         }
+ 
+         .subject-box:hover {
+             transform: scale(1.05); 
+         }
+ 
+         .subject-heading {
+             font-size: 20px;
+             font-weight: bold;
+             margin-bottom: 10px;
+         }
+ 
+         .view-questions-button {
+             background-color: #555;
+             color: #fff;
+             border: none;
+             padding: 8px 14px;
+             border-radius: 5px;
+             cursor: pointer;
+             transition: background-color 0.3s ease, transform 0.2s ease;
+             font-size: 14px;
+         }
+ 
+         .view-questions-button:hover {
+             background-color: #777;
+             transform: scale(1.05);
+         }
+ 
+         /* Responsive Design */
+         @media (max-width: 1200px) {
+             .subject-box {
+                 width: calc(25% - 20px);
+             }
+         }
+ 
+         @media (max-width: 992px) {
+             .subject-box {
+                 width: calc(33.33% - 20px);
+             }
+         }
+ 
+         @media (max-width: 768px) {
+             .subject-box {
+                 width: calc(50% - 20px);
+             }
+         }
+ 
+         @media (max-width: 576px) {
+             .subject-box {
+                 width: 100%;
+             }
+         }
+     </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="welcome-heading">Welcome to Student Dashboard</h1>
+        <button class="logout-button" onclick="window.location.href='/logout'">Logout</button>   <p class="student-name" id="studentName">Hi, <span id="userNamePlaceholder"></span></p>
+
+        <!-- Buttons Section -->
+        <div class="button-container">
+            <button class="styled-button" onclick="window.open('/mock-interviews.html', '_blank')">Watch Mock Interviews</button>
+            <button class="styled-button" onclick="window.open('/placement-mock-tests.html', '_blank')">Take Placement Mock Tests</button>
+        </div>
+
+        <div id="questionPapersContainer"></div>
+        <br>
+        <br>
+
+        <div class="latest-news">
+            <h2>Latest News</h2>
+            <div id="newsContainer"></div>
+        </div>
+<br>
+
+<div class="resume-section">
+    <h2 class="resume-heading">Resume Template</h2>
+    <div id="resumeButtons">
+        <button class="download-button" onclick="downloadResume()">Download Template</button>
+        <button class="download-button" onclick="viewResume()">View Template</button> <!-- Apply same style here -->
+    </div>
+</div>
+
+        <div id="docxViewer"></div>
+
+            <div class="subject-boxes">
+                <div class="subject-box">
+                    <p style="color: #333;">CS_00 - Logical</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_00')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_01 - Verbal</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_01')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_02 - Aptitude</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_02')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_03 - C++</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_03')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_04 - Python</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_04')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_05 - Digital Logic and design</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_05')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_06 - Data extraction and processing</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_06')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_07 - Computer Networks</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_07')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_08 - Data Structures and Algorithms</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_08')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_09 - Design and Analysis of Algorithms</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_09')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_10 - Database Management System</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_10')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_11 - JAVA</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_11')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_12 - Web Programming</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_12')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_13 - Theory of Computation</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_13')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_14 - Computer Organization and Architecture</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_14')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_15 - Operating System</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_15')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_16 - Compiler Design</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_16')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_17 - Discrete Maths</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_17')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_18 - AI/ML</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_18')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_19 - Distributed Computing</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_19')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_20 - IOT and its applications</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_20')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_21 - Microservices</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_21')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_22 - Cybersecurity</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_22')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_23 - Algorithmic Trading</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_23')" style="color:#fff">View Questions</button>
+                </div>
+                <div class="subject-box">
+                    <p style="color: #333;">CS_24 - Android Application Development</p>
+                    <button class="view-questions-button" onclick="viewQuestions('CS_24')" style="color:#fff">View Questions</button>
+                </div>
+            </div>
+        </div>
+
+        
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf.worker.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.10.377/pdf_viewer.min.js"></script>
+
+        <script>
+
+            function getQueryParameter(param) {
+                 const urlParams = new URLSearchParams(window.location.search);
+                 return urlParams.get(param);
+        }
+
+            function setUserName(name) {
+                document.getElementById('userNamePlaceholder').innerText = name;
+            }
+    
+            fetch('/dashboard')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        setUserName(data.user.name);
+                    } else {
+                        console.error(data.message);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+
+        function downloadResume() {
+            const resumeUrl = 'https://res.cloudinary.com/dhhfch8wo/raw/upload/v1723569207/b16tskf76nwucuaibdzt.docx';
+            window.open(resumeUrl, '_blank');
+        }
+
+        function viewResume() {
+                const pdfUrl = 'https://res.cloudinary.com/dhhfch8wo/image/upload/v1723568784/dabwkikntex8rejtny88.png';
+                window.open(pdfUrl, '_blank');
+            }
+
+        function viewQuestions(question_type) {
+        fetch(`/questions/${question_type}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    const questionsHTML = data.map((questionData, index) => {
+                        const { question, option1, option2, option3, option4, correctAnswer } = questionData;
+                        return `
+                            <div class="question-item" id="question-item-${index}" style="margin-bottom: 20px;">
+                                <p><strong>${question}</strong></p>
+                                <label>
+                                    <input type="radio" name="question${index}" value="1">
+                                    ${option1}
+                                </label>
+                                <label>
+                                    <input type="radio" name="question${index}" value="2">
+                                    ${option2}
+                                </label>
+                                <label>
+                                    <input type="radio" name="question${index}" value="3">
+                                    ${option3}
+                                </label>
+                                <label>
+                                    <input type="radio" name="question${index}" value="4">
+                                    ${option4}
+                                </label>
+                                <div id="status-${index}" style="margin-top: 10px;"></div>
+                            </div>
+                            <div>
+                                <button id="submitAnswersButton" onclick="submitAnswer()">Submit Answers</button>
+
+                            </div>
+                        `;
+                    }).join('');
+
+                    var newWindow = window.open('', '_blank');
+                    newWindow.document.write(`
+                        <html>
+                            <head>
+                                <title>Questions - ${question_type}</title>
+                                <style>
+                                    body {
+                                        font-family: Arial, sans-serif;
+                                        padding: 20px;
+                                        background-color: #f0f0f0;
+                                    }
+                                    .question-item {
+                                        background: #fff;
+                                        padding: 15px;
+                                        border: 1px solid #ccc;
+                                        border-radius: 10px;
+                                        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+                                    }
+                                    .question-item label {
+                                        display: block;
+                                        margin-top: 10px;
+                                    }
+                                    #correct {
+                                        color: green;
+                                    }
+                                    #wrong {
+                                        color: red;
+                                    }
+                                </style>
+                            </head>
+                            <body>
+                                <h1>Questions <small>(${question_type})</small></h1>
+                                <div id="questionsContainer">${questionsHTML}</div>
+                            </body>
+                        </html>
+                    `);
+                } else {
+                    console.error('No questions found.');
+                }
+            })
+            .catch(error => console.error('Error fetching questions:', error));
+    }
+    function viewQuestions(question_type) {
+            window.location.href = `result.html?question_type=${question_type}`;
+        }
+
+        function submitAnswer(questionIndex, correctAnswer) {
+    const selectedOption = document.querySelector(`#question-item-${questionIndex} input[type="radio"]:checked`);
+
+    if (selectedOption) {
+    const selectedValue = selectedOption.value;
+    const statusDiv = document.getElementById(`status-${questionIndex}`);
+    const selectedOptionNumber = parseInt(selectedValue); 
+
+    if (selectedOptionNumber === correctAnswer) {
+        statusDiv.innerHTML = `<span id="correct">Correct Answer</span>`;
+    } else {
+        statusDiv.innerHTML = `<span id="wrong">Wrong Answer</span> <br> Correct Answer: ${correctAnswer}`;
+        const viewAnswerButton = document.getElementById(`view-answer-${questionIndex}`);
+        viewAnswerButton.style.display = 'block'; 
+    }
+} else {
+    alert(`Please select an answer for question ${questionIndex + 1}`);
+}
+
+fetch('/submitAnswers', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ answers, questionType: getQueryParameter('question_type') })
+})
+.then(response => response.json())
+.then(data => {
+    if (data.evaluationResults) {
+        data.evaluationResults.forEach(result => {
+            const statusDiv = document.getElementById(`status-${result.questionIndex}`);
+            if (result.isCorrect) {
+                statusDiv.innerHTML = `<span id="correct">Correct Answer</span>`;
+            } else {
+                statusDiv.innerHTML = `<span id="wrong">Wrong Answer</span> <br> Correct Answer: ${result.correctAnswer}`;
+            }
+        });
+    } else {
+        console.error('No evaluation results found.');
+    }
+})
+.catch(error => console.error('Error submitting answers:', error));
+        }
+        // Update the fetch function to retrieve the latest news
+// Fetch latest news from the server
+fetch('/latestNews',{
+    method: 'GET',
+})
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayLatestNews(data.news);
+        } else {
+            console.error(data.message);
+        }
+    })
+    .catch(error => console.error('Error:', error));
+// Function to display latest news
+function displayLatestNews(news) {
+    const newsContainer = document.getElementById('newsContainer');
+    newsContainer.innerHTML = ''; // Clear previous content
+
+    news.forEach(item => {
+        const newsItem = document.createElement('div');
+        newsItem.classList.add('news-item');
+
+        // Title
+        const titleElement = document.createElement('h3');
+        titleElement.textContent = item.title;
+
+        // Description
+        const descriptionElement = document.createElement('p');
+        descriptionElement.textContent = item.description;
+
+        // Append title and description to the news item
+        newsItem.appendChild(titleElement);
+        newsItem.appendChild(descriptionElement);
+
+        // Append news item to the container
+        newsContainer.appendChild(newsItem);
+    });
+}
+
+
+</script>
+</body>
+</html>

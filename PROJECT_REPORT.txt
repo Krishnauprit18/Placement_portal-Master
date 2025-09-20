@@ -1,0 +1,133 @@
+Project: Placement Learning System (NMIMS Placement Portal)
+Date: 2025-09-20
+
+1) Executive Summary
+The project is a Node.js + Express web application backed by MySQL for training students for placements. It provides user registration/login with OTP, faculty-driven question uploads mapped to concepts, student assessments, and an AI-enhanced Knowledge Graph recommendation system that suggests prerequisite topics when students get answers wrong. Static pages are served from the public folder with Bootstrap-based UI, and limited server-rendered EJS pages exist for specific flows. Optional integrations include email (Gmail/Outlook) and Gemini AI for personalized learning insights. Multiple features like generic file uploads and password reset are intentionally disabled.
+
+2) Tech Stack
+- Runtime: Node.js (Express)
+- View: Static HTML (Bootstrap), minimal EJS
+- DB: MySQL (mysql / mysql2 driver)
+- Sessions & Cookies: express-session, cookie-parser
+- Email: nodemailer (Gmail/Outlook)
+- AI: @google/generative-ai (optional)
+- Env: dotenv
+- Timezone: moment-timezone
+
+3) Project Structure (key items)
+- server.js: Main Express server, routes, session config, MySQL pool, recommendation logic
+- public/: All client HTML & JS (login, register, dashboards, concept management, etc.)
+- src/: Duplicate/alternate client JS for concept management
+- views/: EJS templates (reset-password.ejs, view-submissions.ejs)
+- SQL scripts: database_setup.sql, fix_questions_table.sql, fix_database.sql, check_database.sql, add_test_questions.sql
+- Docs: README.md, SETUP_INSTRUCTIONS.md, ENABLED_FEATURES.md, KNOWLEDGE_GRAPH_SETUP_GUIDE.md, CONCEPT_DROPDOWN_FIX.md, SECURITY.md
+- Tests/Utilities: test_knowledge_graph_system.js, test_recommendation_system.js, debug_concepts.js, quick_test.sh
+
+4) Core Features
+4.1 Authentication and Sessions
+- Registration (POST /register.html) storing name, email, username, userType
+- OTP login flow: /send-otp to email OTP, POST /dashboard validates OTP and redirects
+- express-session used to persist user session; logout at GET /logout
+
+4.2 Question Management
+- Faculty uploads MCQ questions via POST /upload with fields: question, option1-4, correctAnswer, question_type, concept_id
+- Backend validates concept_id exists before inserting
+- Students fetch questions by type via GET /questions/:question_type
+
+4.3 Knowledge Graph & Recommendations
+- Tables: concepts, concept_relationships
+- On submission (POST /submitAnswers): evaluates answers; for wrong ones, fetches prerequisite concepts based on DEPENDS_ON relationships, then recommends questions tied to those prerequisite concepts
+- Optional: Gemini AI generates learning insights text when GEMINI_AI_ENABLED=true and key provided
+- Endpoint /recommend-prerequisites/:questionId also returns recommendations given a question id
+
+4.4 News/Announcements
+- POST /uploadNews inserts news and notifies students by email; GET /latestNews returns recent items
+
+4.5 Pages (Static)
+- /login.html, /register.html, /studentdashboard.html, /facultydashboard.html, /concept-management.html, /assignment-dashboard.html, /mock-interviews.html, /placement-mock-tests.html, /upload-questions.html, /result.html
+- Routes are mostly simple sendFile handlers mapped in server.js
+
+5) API Surface (selected)
+- Health: GET /ping -> 'pong', GET /test-db -> DB diagnostics
+- Auth: POST /register.html, POST /dashboard, GET /logout, POST /send-otp
+- Questions: GET /questions/:question_type, POST /upload, POST /submitAnswers
+- Concepts: POST /concepts, GET /concepts, POST /concept-relationships, GET /concept-relationships
+- Recommendations: GET /recommend-prerequisites/:questionId
+- News: POST /uploadNews, GET /latestNews
+- Root: GET / -> /public/login.html
+
+6) Database Schema (expected)
+- users: name, email, username, userType, otp, otp_expiry
+- questions: id (PK), question, option1-4, correctAnswer (int 1..4), question_type (varchar), concept_id (FK -> concepts.id), created_at
+- concepts: id (PK), name, description, created_at
+- concept_relationships: id (PK), source_concept_id (FK), target_concept_id (FK), relationship_type ('DEPENDS_ON'), created_at
+- news: title, description, created_at (implied by code)
+- student_results: id, student_email, question_type, score, total_questions, percentage, failed_question_ids (JSON), test_date
+
+SQL Assets:
+- database_setup.sql: creates concepts, concept_relationships, student_results with sample inserts
+- fix_questions_table.sql: adds id PK to questions, ensures concept_id, indexes, column types
+- fix_database.sql: defines a clean CREATE TABLE for questions (id PK) and concepts
+- check_database.sql: helper to ensure concept_id exists in questions
+- add_test_questions.sql: sample inserts into questions targeting a different DB (student_db)
+
+7) Configuration & Environment
+- .env: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, SESSION_SECRET/SECRET_SESSION, EMAIL_ENABLED, EMAIL_USER/PASS, OUTLOOK_USER/PASS, optional NMIMS_LOGO_URL/BACKGROUND_IMAGE_URL, GEMINI_AI_ENABLED, GEMINI_API_KEY
+- Session secret handling hardened in server.js: uses SESSION_SECRET or SECRET_SESSION, warns and uses random dev secret if missing
+- Port: 3000
+
+8) Setup & Run
+- Install: npm install
+- Configure .env (copy .env.example -> .env)
+- Initialize DB: run fix_questions_table.sql then database_setup.sql against DB_NAME
+- Start: npm start (node server.js)
+- Visit: http://localhost:3000/login.html
+
+9) Testing & Diagnostics
+- quick_test.sh: installs deps, scaffolds .env if missing, runs test_recommendation_system.js
+- test_recommendation_system.js: basic DB checks and recommendation probe
+- test_knowledge_graph_system.js: comprehensive MySQL2-based validation, creates sample data and simulates flow
+- debug_concepts.js: checks concepts table and /concepts endpoint; helpful for dropdown issues
+- Server endpoints: /test-db and /ping
+
+10) Security & Operational Notes
+- Session secret must be set in production; code now generates a random dev fallback and warns
+- EMAIL_ENABLED can be false for local dev; OTP endpoint returns mockOtp when email disabled
+- Disabled features: password reset flow, document uploads, question paper management, cloud storage
+- Keep-alive pings to a Render URL (placementportal-ktlv.onrender.com) are present; adjust or disable if not desired
+
+11) Known Limitations / Gaps
+- Passwords are not used for login (OTP-only); README mentions password encryption but current flow doesnt hash passwords
+- Mixed use of mysql and mysql2 packages; consolidate on one
+- Some SQL scripts refer to different DB names (e.g., student_db)  standardize to DB_NAME
+- No centralized schema migration; manual SQL execution required
+- Some public scripts expect GET /concept-relationships which is implemented; ensure CORS and auth controls as needed for production
+- Limited server-rendered pages (EJS) are present but not actively used
+
+12) Recommendations
+- Add a proper migrations tool (e.g., Knex or Sequelize) and seed scripts
+- Consolidate to mysql2/promise and remove mysql
+- Gate admin endpoints (concepts, relationships, upload) with auth/role checks
+- Add CSRF protection and input validation middleware (celebrate/joi or express-validator)
+- Implement rate limiting on OTP endpoints
+- Replace keep-alive to external URL with internal health checks or configurable cron
+- Expand tests with Mocha/Chai (already in devDeps) and add CI
+- Normalize environment variable names (prefer SESSION_SECRET)
+- Add CORS config if cross-origin clients are expected
+
+13) How to Use (Typical Flows)
+- Faculty: Login -> Upload Questions (choose concept) -> Manage Concepts/Relationships -> Post News
+- Student: Register -> Login via OTP -> Take Tests -> Submit -> View Recommendations in result flow and practice
+
+14) File-by-File Highlights
+- server.js: ~900 lines combining routing, DB pool, knowledge graph logic, email, AI hooks; exports nothing (monolithic)
+- public/concept-management.js: Admin UI for managing concepts/relationships via REST endpoints
+- src/concept-management.js: Similar to public version; potentially legacy duplicate
+- public/*.html: Bootstrap UIs for login/register/dashboards/tests
+- SQL files: Schema setup and fixes, plus sample data
+- test_knowledge_graph_system.js: rich diagnostic script using mysql2/promise
+
+15) License
+- LICENSE present (check file for exact terms; not parsed here)
+
+End of Report.
