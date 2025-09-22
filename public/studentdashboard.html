@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Dashboard</title>
     <style>
+        html, body { overflow-x: hidden; }
         body {
              font-family: Arial, sans-serif;
              background-image: url('https://res.cloudinary.com/dfl7exztb/image/upload/v1716112094/seaw333c7yrbdfhbbv3t.jpg');
@@ -36,6 +37,7 @@
          .container {
              max-width: 1200px;
              margin: 0 auto;
+             overflow-x: hidden; /* guard against internal overflow */
          }
  
          .welcome-heading {
@@ -88,14 +90,87 @@
              margin-bottom: 30px;
              background: rgba(255, 255, 255, 0.8);
              box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-             animation: scrollNews 30s linear infinite;
+             position: relative;
+         }
+         .latest-news h2 { display: flex; align-items: baseline; gap: 10px; font-size: 18px; }
+         .latest-news .news-hint { font-size: 14px; color: #6b7280; font-weight: normal; }
+         .latest-news .marquee-container {
+             width: 100%;
              overflow: hidden;
              position: relative;
          }
-         @keyframes scrollNews {
-             0% { transform: translateX(100%); }
-             100% { transform: translateX(-100%); }
+         .latest-news .marquee-content {
+             display: inline-block;
+             white-space: nowrap;
+             animation: marquee 15s linear infinite;
+             padding-left: 100%;
          }
+         .latest-news .news-item {
+             display: inline-block;
+             margin-right: 50px;
+             color: #333;
+             font-size: 18px; /* increased for better readability */
+             line-height: 1.6;
+         }
+         
+         .latest-news .news-title {
+             font-weight: bold;
+             color: #1a73e8;
+         }
+         /* Make title look like a link and clickable */
+         .latest-news .link-button {
+             background: none;
+             border: none;
+             color: #1a73e8;
+             font-weight: bold;
+             font-size: inherit;
+             cursor: pointer;
+             padding: 0;
+         }
+         .latest-news .link-button:hover { text-decoration: underline; }
+         
+         /* We won't show description or time inside the marquee */
+         .latest-news .news-desc { display: none; }
+         .latest-news .news-time { display: none; }
+         
+         .latest-news .news-separator {
+             color: #888;
+             margin: 0 15px;
+         }
+         @keyframes marquee {
+             from {
+                 transform: translateX(0);
+             }
+             to {
+                 transform: translateX(-100%);
+             }
+         }
+
+         /* Simple modal for news details */
+         .modal-overlay {
+             position: fixed;
+             inset: 0;
+             background: rgba(0,0,0,0.5);
+             display: none;
+             align-items: center;
+             justify-content: center;
+             z-index: 1000;
+         }
+         .modal-overlay.show { display: flex; }
+         .modal-card {
+             background: #fff;
+             max-width: 640px;
+             width: 90%;
+             border-radius: 12px;
+             box-shadow: 0 10px 35px rgba(0,0,0,0.25);
+             padding: 20px 24px;
+         }
+         .modal-header { display:flex; justify-content: space-between; align-items:center; margin-bottom: 10px; }
+         .modal-title { font-size: 20px; font-weight: 700; margin: 0; color:#1f2937; }
+         .modal-close { background:#d9534f; color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer; }
+         .modal-close:hover { background:#c9302c; }
+         .modal-time { color:#666; font-size: 12px; margin-bottom: 10px; }
+         .modal-body { color:#333; white-space: pre-wrap; line-height: 1.5; }
  
          .resume-section {
              display: flex;
@@ -107,6 +182,8 @@
              background: rgba(255, 255, 255, 0.8);
              box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
              margin-bottom: 30px;
+             max-width: 100%;
+             box-sizing: border-box;
          }
          .resume-heading {
              font-size: 24px;
@@ -212,32 +289,34 @@
              display: flex;
              flex-wrap: wrap;
              justify-content: center; /* match faculty dashboard alignment */
+             max-width: 100%;
          }
  
          .subject-box {
-             display: inline-block;
+             display: flex;
+             flex-direction: column;
+             justify-content: space-between;
              width: calc(20% - 20px);
              height: 120px;
              margin: 10px;
              border: 1px solid #ccc;
-             padding: 10px;
-             text-align: left;
-             vertical-align: top;
+             padding: 15px;
              background: rgba(255, 255, 255, 0.3);
              backdrop-filter: blur(5px);
              border-radius: 15px; 
              box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
              transition: transform 0.2s ease; 
+             box-sizing: border-box;
          }
  
          .subject-box:hover {
              transform: scale(1.05); 
          }
  
-         .subject-heading {
-             font-size: 20px;
-             font-weight: bold;
-             margin-bottom: 10px;
+         .subject-box p {
+             margin: 0;
+             font-size: 16px;
+             line-height: 1.4;
          }
  
          .view-questions-button {
@@ -249,6 +328,8 @@
              cursor: pointer;
              transition: background-color 0.3s ease, transform 0.2s ease;
              font-size: 14px;
+             width: 100%;
+             margin-top: auto;
          }
  
          .view-questions-button:hover {
@@ -298,8 +379,22 @@
         <br>
 
         <div class="latest-news">
-            <h2>Latest News</h2>
-            <div id="newsContainer"></div>
+            <h2>Latest News <span class="news-hint">(Click Title to view news)</span></h2>
+            <div class="marquee-container">
+                <div class="marquee-content" id="newsContainer"></div>
+            </div>
+        </div>
+        
+        <!-- Modal for news details -->
+        <div id="newsModal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3 class="modal-title" id="newsModalTitle"></h3>
+                    <button class="modal-close" id="newsModalClose" aria-label="Close">Close</button>
+                </div>
+                <div class="modal-time" id="newsModalTime"></div>
+                <div class="modal-body" id="newsModalBody"></div>
+            </div>
         </div>
 <br>
 
@@ -593,29 +688,107 @@ fetch('/latestNews',{
     })
     .catch(error => console.error('Error:', error));
 // Function to display latest news
+function formatTimeAgo(timestamp) {
+    const now = new Date();
+    const pastDate = new Date(timestamp);
+    const diffInSeconds = Math.floor((now - pastDate) / 1000);
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    const diffInDays = Math.floor(diffInHours / 24);
+
+    if (diffInSeconds < 60) {
+        return 'Just now';
+    } else if (diffInMinutes < 60) {
+        return `${diffInMinutes}m ago`;
+    } else if (diffInHours < 24) {
+        return `${diffInHours}h ago`;
+    } else if (diffInDays === 1) {
+        return 'Yesterday';
+    } else if (diffInDays < 7) {
+        return `${diffInDays}d ago`;
+    } else {
+        return pastDate.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric',
+            year: pastDate.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+        });
+    }
+}
+
 function displayLatestNews(news) {
     const newsContainer = document.getElementById('newsContainer');
     newsContainer.innerHTML = ''; // Clear previous content
 
-    news.forEach(item => {
-        const newsItem = document.createElement('div');
+    // Create the initial news items
+    news.forEach((item, idx) => {
+        const newsItem = document.createElement('span');
         newsItem.classList.add('news-item');
 
-        // Title
-        const titleElement = document.createElement('h3');
-        titleElement.textContent = item.title;
+        const title = item.title || '';
+        const desc = item.description || '';
+        const tsRaw = item.created_at || item.posted_at || item.timestamp; // prefer DB timestamp
 
-        // Description
-        const descriptionElement = document.createElement('p');
-        descriptionElement.textContent = item.description;
+        // Build clickable title only (no description/time in ticker)
+        const btn = document.createElement('button');
+        btn.className = 'link-button news-title';
+        btn.type = 'button';
+        btn.textContent = title;
+        btn.addEventListener('click', () => openNewsModal(title, desc, tsRaw));
 
-        // Append title and description to the news item
-        newsItem.appendChild(titleElement);
-        newsItem.appendChild(descriptionElement);
+        newsItem.appendChild(btn);
 
-        // Append news item to the container
         newsContainer.appendChild(newsItem);
+        
+        // Add separator
+        if (idx !== news.length - 1) {
+            const sep = document.createElement('span');
+            sep.textContent = ' • ';
+            sep.classList.add('news-separator');
+            newsContainer.appendChild(sep);
+        }
     });
+
+    // Note: Do not duplicate content; show each item only once as requested.
+
+    // If no news items are present, add a default message
+    if (!news || news.length === 0) {
+        const defaultItem = document.createElement('span');
+        defaultItem.classList.add('news-item');
+        defaultItem.textContent = 'Welcome to the Student Dashboard';
+        newsContainer.appendChild(defaultItem);
+    }
+
+    // Update timestamps every minute
+    // No need to update ticker time since we don't display it here
+}
+
+function openNewsModal(title, description, timestamp) {
+    const overlay = document.getElementById('newsModal');
+    const titleEl = document.getElementById('newsModalTitle');
+    const timeEl = document.getElementById('newsModalTime');
+    const bodyEl = document.getElementById('newsModalBody');
+    const closeBtn = document.getElementById('newsModalClose');
+
+    titleEl.textContent = title || 'Announcement';
+    timeEl.textContent = timestamp ? `Posted ${formatTimeAgo(timestamp)}` : '';
+    bodyEl.textContent = description || '';
+
+    overlay.classList.add('show');
+    overlay.setAttribute('aria-hidden', 'false');
+
+    function closeModal() {
+        overlay.classList.remove('show');
+        overlay.setAttribute('aria-hidden', 'true');
+        closeBtn.removeEventListener('click', closeModal);
+        overlay.removeEventListener('click', onOverlayClick);
+        document.removeEventListener('keydown', onEsc);
+    }
+    function onOverlayClick(e) { if (e.target === overlay) closeModal(); }
+    function onEsc(e) { if (e.key === 'Escape') closeModal(); }
+
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', onOverlayClick);
+    document.addEventListener('keydown', onEsc);
 }
 
 

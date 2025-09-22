@@ -9,6 +9,8 @@ const nodemailer = require('nodemailer');
 const path = require('path');
 const app = express();
 const https = require('https');
+const multer = require('multer');
+const upload = multer();
 
 // Gemini AI Integration
 const { GoogleGenerativeAI } = require('@google/generative-ai'); 
@@ -75,7 +77,8 @@ app.get('/test-db', (req, res) => {
 });
 
 
-const currentDateTime = getCurrentTimeinIST();
+// NOTE: Always compute current time at the moment of use, don't freeze at boot.
+// const currentDateTime = getCurrentTimeinIST(); // removed frozen timestamp
 
 
 app.set('view engine', 'ejs');
@@ -247,7 +250,7 @@ app.post('/register.html', encodeURL, async (req, res) => {
                     <script>
                         setTimeout(function() {
                             window.location.href = '/login';
-                        }, 3000);
+                        }, 1000);
                     </script>
                 </head>
                 <body>
@@ -256,7 +259,7 @@ app.post('/register.html', encodeURL, async (req, res) => {
                             <div class="col-md-6">
                                 <div class="success-message">
                                     <h3 class="text-success">Registration Successful!</h3>
-                                    <p>You will be redirected to login page in 3 seconds...</p>
+                                    <p>You will be redirected to login page in 1 second...</p>
                                     <a href="/login" class="btn btn-primary">Login Now</a>
                                 </div>
                             </div>
@@ -409,54 +412,68 @@ function saveQuestionToDatabase(question, option1, option2, option3, option4, co
 }
 
 async function sendNotificationEmail(userEmail, subject, text, html) {
-    // Check if email is enabled
-    if (process.env.EMAIL_ENABLED === 'false') {
-        console.log('Email disabled. Skipping email send to:', userEmail);
+    // Respect EMAIL_ENABLED flag
+    if (String(process.env.EMAIL_ENABLED).toLowerCase() === 'false') {
+        console.log('[Email] Disabled. Skipping send to:', userEmail);
         return { success: false, message: 'Email service disabled' };
     }
 
-    let transporter;
-    let fromEmail;
-
-    try {
-        if (userEmail.endsWith('@nmims.in')) {
-            transporter = nodemailer.createTransport({
-                service: 'Outlook',
+    // Build available transporters (prefer Outlook, fallback to Gmail)
+    const transports = [];
+    if (process.env.OUTLOOK_USER && process.env.OUTLOOK_PASS) {
+        transports.push({
+            name: 'outlook',
+            from: process.env.OUTLOOK_USER,
+            create: () => nodemailer.createTransport({
+                host: 'smtp.office365.com',
+                port: 587,
+                secure: false,
                 auth: {
                     user: process.env.OUTLOOK_USER,
                     pass: process.env.OUTLOOK_PASS,
                 },
-                timeout: 10000
-            });
-            fromEmail = process.env.OUTLOOK_USER;
-        } else if (userEmail.endsWith('@gmail.com')) {
-            transporter = nodemailer.createTransport({
+                tls: { ciphers: 'SSLv3' },
+                connectionTimeout: 15000,
+                greetingTimeout: 10000,
+            })
+        });
+    }
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        transports.push({
+            name: 'gmail',
+            from: process.env.EMAIL_USER,
+            create: () => nodemailer.createTransport({
                 service: 'Gmail',
                 auth: {
                     user: process.env.EMAIL_USER,
                     pass: process.env.EMAIL_PASS,
                 },
-                timeout: 10000
-            });
-            fromEmail = process.env.EMAIL_USER;
-        } else {
-            throw new Error('Unsupported email domain');
-        }
-
-        const mailOptions = {
-            from: fromEmail,
-            to: userEmail,
-            subject: subject,
-            text: text,
-            html: html,
-        };
-
-        await transporter.sendMail(mailOptions);
-        return { success: true, message: 'Email sent successfully' };
-    } catch (error) {
-        console.error('Error sending email:', error);
-        return { success: false, message: 'Failed to send email', error: error.message };
+                connectionTimeout: 15000,
+                greetingTimeout: 10000,
+            })
+        });
     }
+
+    if (transports.length === 0) {
+        const msg = 'No email transporter configured. Set OUTLOOK_USER/OUTLOOK_PASS or EMAIL_USER/EMAIL_PASS';
+        console.warn('[Email] ' + msg);
+        return { success: false, message: msg };
+    }
+
+    // Try available transports in order
+    const firstError = { err: null };
+    for (const t of transports) {
+        try {
+            const transporter = t.create();
+            const mailOptions = { from: t.from, to: userEmail, subject, text, html };
+            await transporter.sendMail(mailOptions);
+            return { success: true, message: `Email sent via ${t.name}` };
+        } catch (e) {
+            console.warn(`[Email] Attempt with ${t.name} failed:`, e?.message || e);
+            if (!firstError.err) firstError.err = e;
+        }
+    }
+    return { success: false, message: 'All email transports failed', error: firstError.err?.message };
 }
 
 
@@ -524,6 +541,7 @@ app.post('/submitAnswers', async (req, res) => {
             // Get AI-Enhanced recommendations for failed questions
             let allRecommendationData = [];
             let aiInsights = [];
+            let aiGuidance = null; // one concise guidance summary for the page
             
             if (failedQuestionIds.length > 0) {
                 console.log('Generating AI-Enhanced recommendations for failed questions...');
@@ -545,6 +563,10 @@ app.post('/submitAnswers', async (req, res) => {
                                 insights: recommendationResult.aiInsights
                             });
                         }
+                        // Prefer the first available guidance summary
+                        if (!aiGuidance && recommendationResult.aiGuidance) {
+                            aiGuidance = recommendationResult.aiGuidance;
+                        }
                     }
                     
                     console.log(`Generated ${allRecommendationData.length} questions and ${aiInsights.length} AI insights`);
@@ -554,10 +576,11 @@ app.post('/submitAnswers', async (req, res) => {
                 }
             }
 
-            // Remove duplicate recommendations
-            const uniqueRecommendations = allRecommendationData.filter((recommendation, index, self) => 
-                index === self.findIndex(r => r.id === recommendation.id)
-            );
+            // Remove duplicate recommendations by normalized question text (AI items may not have stable IDs)
+            const uniqueRecommendations = allRecommendationData.filter((recommendation, index, self) => {
+                const key = (recommendation.question || '').replace(/\s+/g, ' ').trim().toLowerCase();
+                return index === self.findIndex(r => ((r.question || '').replace(/\s+/g, ' ').trim().toLowerCase()) === key);
+            });
 
             console.log(`Final unique recommendations: ${uniqueRecommendations.length}`);
 
@@ -584,7 +607,8 @@ app.post('/submitAnswers', async (req, res) => {
                 success: true,
                 evaluationResults,
                 recommendations: uniqueRecommendations,
-                aiInsights: aiInsights, // New: AI-powered learning insights
+                aiInsights: aiInsights, // AI-powered learning insights
+                aiGuidance: aiGuidance, // AI guidance summary for green panel
                 summary: {
                     totalQuestions: evaluationResults.length,
                     correctAnswers: evaluationResults.filter(r => r.isCorrect).length,
@@ -619,33 +643,38 @@ async function getRecommendationsForQuestion(questionId) {
             // Step 2: Find prerequisite concepts from Knowledge Graph
             const prerequisiteResult = await queryDatabase('SELECT target_concept_id FROM concept_relationships WHERE source_concept_id = ? AND relationship_type = ?', [failedConceptId, 'DEPENDS_ON']);
             
-            if (prerequisiteResult.length === 0) {
-                // No prerequisites found, but still try to get AI insights
-                const aiInsights = await getAILearningInsights(failedQuestion.question, failedConceptName, []);
-                return resolve({ questions: [], aiInsights });
+            const prerequisiteConceptIds = prerequisiteResult.map(row => row.target_concept_id);
+            let prerequisiteNames = [];
+            if (prerequisiteConceptIds.length > 0) {
+                const namesRows = await queryDatabase('SELECT id, name FROM concepts WHERE id IN (?)', [prerequisiteConceptIds]);
+                prerequisiteNames = namesRows.map(r => r.name);
             }
 
-            const prerequisiteConceptIds = prerequisiteResult.map(row => row.target_concept_id);
+            // Step 3 (AI-only): Ask Gemini to generate practice questions (no DB fallback)
+            const recommendedQuestions = await generateAIPracticeQuestions(failedConceptName, prerequisiteNames, 6);
 
-            // Step 3: Get prerequisite questions with concept details
-            const recommendedQuestions = await queryDatabase(
-                `SELECT 
-                    q.id, q.question, q.option1, q.option2, q.option3, q.option4, q.correctAnswer, q.question_type, q.concept_id,
-                    c.name as concept_name, c.description as concept_description
-                 FROM questions q 
-                 JOIN concepts c ON q.concept_id = c.id 
-                 WHERE q.concept_id IN (?)
-                 ORDER BY c.name, q.id`,
-                [prerequisiteConceptIds]
-            );
+            // Step 4: AI-powered ranking/annotations for recommended questions (if Gemini enabled)
+            let enrichedQuestions = recommendedQuestions;
+            try {
+                if (geminiModel && recommendedQuestions.length > 0) {
+                    const ranked = await rankQuestionsWithAI(recommendedQuestions);
+                    if (ranked && ranked.length > 0) {
+                        enrichedQuestions = ranked;
+                    }
+                }
+            } catch (e) {
+                console.warn('AI ranking failed, using default recommendations.', e?.message || e);
+            }
 
-            // Step 4: Get AI-powered learning insights
-            const prerequisiteNames = [...new Set(recommendedQuestions.map(q => q.concept_name))];
-            const aiInsights = await getAILearningInsights(failedQuestion.question, failedConceptName, prerequisiteNames);
+            // Step 5: Get AI-powered learning insights and guidance summary
+            const prerequisiteNamesForInsights = [...new Set(enrichedQuestions.map(q => q.concept_name))];
+            const aiInsights = await getAILearningInsights(failedQuestion.question, failedConceptName, prerequisiteNamesForInsights);
+            const aiGuidance = await getAIGuidanceSummary(failedConceptName, prerequisiteNamesForInsights);
 
             resolve({ 
-                questions: recommendedQuestions, 
+                questions: enrichedQuestions, 
                 aiInsights,
+                aiGuidance,
                 failedConcept: {
                     name: failedConceptName,
                     description: failedQuestion.concept_description
@@ -700,6 +729,71 @@ Keep the tone friendly, encouraging, and educational. Use simple language that a
     }
 }
 
+// Gemini AI: Create a short, structured guidance block for the green panel
+async function getAIGuidanceSummary(failedConceptName, prerequisiteNames) {
+    if (!geminiModel) return null;
+    try {
+        const prompt = `
+You are a concise learning coach. Generate a short JSON object to guide a student after failing a concept.
+FAILED_CONCEPT: ${failedConceptName || 'Unknown'}
+PREREQUISITES: ${prerequisiteNames && prerequisiteNames.length ? prerequisiteNames.join(', ') : 'None'}
+
+Return STRICT JSON with keys: title, analysis, solution, howHelps. Keep each value <= 28 words.`;
+
+        const result = await geminiModel.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }]}],
+            generationConfig: { temperature: 0.6 }
+        });
+        const text = await result.response.text();
+        try {
+            // Extract JSON if the model adds extra text
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            const obj = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+            const { title, analysis, solution, howHelps } = obj || {};
+            if (title || analysis || solution || howHelps) return { title, analysis, solution, howHelps };
+        } catch (_) { /* fallthrough */ }
+        return null;
+    } catch (e) {
+        console.warn('AI guidance summary error:', e?.message || e);
+        return null;
+    }
+}
+
+// Gemini AI: Rank and annotate recommended questions
+async function rankQuestionsWithAI(questions) {
+    if (!geminiModel || !Array.isArray(questions) || questions.length === 0) return questions;
+    try {
+        const items = questions.slice(0, 12).map(q => ({ id: q.id, concept: q.concept_name, question: q.question }));
+        const prompt = `You are selecting the best prerequisite practice questions for a student.
+Return STRICT JSON array of objects: {id:number, score:1-5, reason:string}. Higher score means higher priority and better foundational coverage.
+Consider concept relevance and clarity. Limit to top 8 items. Input: ${JSON.stringify(items)}`;
+
+        const result = await geminiModel.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }]}],
+            generationConfig: { temperature: 0.3 }
+        });
+        const text = await result.response.text();
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        const arr = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+        if (!Array.isArray(arr) || arr.length === 0) return questions;
+
+        const byId = new Map(arr.map(e => [e.id, e]));
+        const merged = questions.map(q => ({
+            ...q,
+            aiScore: byId.get(q.id)?.score ?? null,
+            aiReason: byId.get(q.id)?.reason ?? null,
+        }));
+        // Sort by aiScore desc when present, then keep original order
+        merged.sort((a,b) => (b.aiScore || 0) - (a.aiScore || 0));
+        // Limit to top 8 if AI provided scores
+        const hasScores = merged.some(m => typeof m.aiScore === 'number');
+        return hasScores ? merged.slice(0, 8) : merged;
+    } catch (e) {
+        console.warn('AI ranking parse error:', e?.message || e);
+        return questions;
+    }
+}
+
 function evaluateAnswers(answers, correctAnswers) {
     const results = [];
     answers.forEach((answer, index) => {
@@ -709,49 +803,89 @@ function evaluateAnswers(answers, correctAnswers) {
     return results;
 }
 
-app.post('/uploadNews', (req, res) => {
-    const { title, description } = req.body; 
+// Gemini AI: Generate practice MCQs for prerequisite concepts
+async function generateAIPracticeQuestions(failedConceptName, prerequisiteNames, count = 6) {
+    if (!geminiModel) return [];
+    try {
+        const conceptsList = (prerequisiteNames && prerequisiteNames.length) ? prerequisiteNames.join(', ') : failedConceptName;
+        const prompt = `You are a CS tutor. Generate ${count} foundational multiple-choice questions (MCQs) to help a student before revisiting: ${failedConceptName}.
+Concepts to cover: ${conceptsList}
+Return STRICT JSON array of objects with keys exactly: question, option1, option2, option3, option4, correctAnswer (1-4 integer), concept_name.
+Keep questions concise and unambiguous; ensure only one correct option and no code requiring execution.`;
 
-    if (!title || !description) {
-        return res.status(400).json({ success: false, message: 'Title and description are required' });
-    }
-
-    const sql = 'INSERT INTO news (title, description) VALUES (?, ?)';
-    const values = [title, description || null]; 
-    pool.query(sql, values, (err, result) => {
-        if (err) {
-            console.error('Error uploading news:', err);
-            return res.status(500).json({ success: false, message: 'Failed to upload news' });
-        }
-        
-        // Image upload functionality removed
-
-        pool.query('SELECT email FROM users WHERE userType = "Student"', async(err, results) => {
-            if(err){
-                console.log('Error fetching students emails:', err);
-                return res.status(500).json({
-                    success: false,
-                    message: 'Failed to fetch students emails'
-                }); 
-            }
-
-            for(const result of results){
-                const studentEmail = result.email;
-                const subject = title + '-' + currentDateTime;
-                const text = `${title} ${currentDateTime}\n\n${description}`;
-                const html = `<p>${title} ${currentDateTime}</p><p>${description}</p>`;
-
-                try{
-                    await sendNotificationEmail(studentEmail, subject, text, html);
-                }
-                catch(error){
-                    console.error(`Error sending email to {studentEmail}:`, error);
-                }
-            }
-
-            res.json({success: true, message: 'News uploaded and notifications sent successfully!!'});
+        const result = await geminiModel.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }]}],
+            generationConfig: { temperature: 0.4 }
         });
-    });
+        const text = await result.response.text();
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        const arr = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+        if (!Array.isArray(arr)) return [];
+        // Normalize shape and add synthetic ids
+        return arr.slice(0, count).map((q, idx) => ({
+            id: q.id || Number(Date.now() % 1e7) + idx, // synthetic
+            question: String(q.question || '').trim(),
+            option1: String(q.option1 || '').trim(),
+            option2: String(q.option2 || '').trim(),
+            option3: String(q.option3 || '').trim(),
+            option4: String(q.option4 || '').trim(),
+            correctAnswer: Math.min(4, Math.max(1, parseInt(q.correctAnswer))) || 1,
+            question_type: 'ai_generated',
+            concept_id: null,
+            concept_name: String(q.concept_name || failedConceptName || 'Fundamentals')
+        })).filter(q => q.question && q.option1 && q.option2 && q.option3 && q.option4);
+    } catch (e) {
+        console.warn('AI practice generation error:', e?.message || e);
+        return [];
+    }
+}
+
+// Accept multipart/form-data without requiring any timestamp fields; timestamp is set automatically
+app.post('/uploadNews', upload.none(), (req, res) => {
+    try {
+        const title = (req.body?.title || '').trim();
+        const description = (req.body?.description || '').trim();
+
+        if (!title || !description) {
+            return res.status(400).json({ success: false, message: 'Title and description are required' });
+        }
+
+        // Insert without manual timestamp; DB DEFAULT CURRENT_TIMESTAMP will populate created_at
+        const sql = 'INSERT INTO news (title, description) VALUES (?, ?)';
+        pool.query(sql, [title, description], (err) => {
+            if (err) {
+                console.error('Error uploading news:', err);
+                return res.status(500).json({ success: false, message: 'Failed to upload news' });
+            }
+
+            // Notify students via email (optional, controlled by EMAIL_ENABLED)
+            pool.query('SELECT email FROM users WHERE userType = "student"', async (err2, results) => {
+                if (err2) {
+                    console.log('Error fetching students emails:', err2);
+                    return res.status(500).json({ success: false, message: 'Failed to fetch students emails' });
+                }
+
+                const nowIST = getCurrentTimeinIST();
+                for (const row of results) {
+                    const studentEmail = row.email;
+                    const subject = `${title} - ${nowIST}`;
+                    const text = `${title} ${nowIST}\n\n${description}`;
+                    const html = `<p><strong>${title}</strong> <em>${nowIST}</em></p><p>${description}</p>`;
+
+                    try {
+                        await sendNotificationEmail(studentEmail, subject, text, html);
+                    } catch (error) {
+                        console.error(`Error sending email to ${studentEmail}:`, error);
+                    }
+                }
+
+                return res.json({ success: true, message: 'News uploaded and notifications sent successfully!' });
+            });
+        });
+    } catch (e) {
+        console.error('Unexpected error in /uploadNews:', e);
+        return res.status(500).json({ success: false, message: 'Internal server error' });
+    }
 });
 
 app.get('/latestNews', (req, res) => {
@@ -818,6 +952,32 @@ app.post('/send-otp', async (req, res) => {
         }
     });
 });
+
+// Optional: Test email endpoint (enable with ENABLE_EMAIL_TEST=true and provide EMAIL_TEST_TOKEN)
+if (String(process.env.ENABLE_EMAIL_TEST).toLowerCase() === 'true') {
+    app.get('/email-test', async (req, res) => {
+        try {
+            const token = req.query.token;
+            const to = req.query.to;
+            if (!token || token !== process.env.EMAIL_TEST_TOKEN) {
+                return res.status(403).json({ success: false, message: 'Forbidden' });
+            }
+            if (!to) {
+                return res.status(400).json({ success: false, message: 'Provide ?to=email@example.com' });
+            }
+            const result = await sendNotificationEmail(
+                to,
+                'Placement Portal Email Test',
+                'This is a test email from the Placement Portal. If you received this, SMTP is working.',
+                '<p>This is a <strong>test email</strong> from the Placement Portal. If you received this, SMTP is working.</p>'
+            );
+            res.json({ success: !!result.success, result });
+        } catch (e) {
+            console.error('Email test error:', e);
+            res.status(500).json({ success: false, message: e?.message || 'Error' });
+        }
+    });
+}
 
 // Forgot Password endpoint - DISABLED
 

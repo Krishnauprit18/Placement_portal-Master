@@ -3,66 +3,120 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Result Page</title>
+    <title>Quiz Results</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background-color: #f0f0f0;
-            position: "relative";
+        :root {
+            --bg: #f5f7fb;
+            --card-bg: #ffffff;
+            --muted: #6b7280;
+            --primary: #007bff;
+            --primary-hover: #0056b3;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
         }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background: var(--bg);
+            color: #111827;
+        }
+        /* Sticky topbar */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            backdrop-filter: blur(8px);
+            background: rgba(255,255,255,0.8);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+        }
+        .topbar-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+        }
+        .title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .title small { font-weight: 500; color: var(--muted); }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 20px 16px 30px;
+        }
+        /* Generic buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid transparent;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            transition: background-color .2s ease, color .2s ease, border-color .2s ease;
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-success { background: var(--success); color: #fff; }
+        .btn-success:hover { background: #218838; }
+        .btn-outline { background: transparent; color: #111827; border-color: #d1d5db; }
+        .btn-outline:hover { background: #f3f4f6; }
+        .btn-link { background: transparent; color: var(--primary); padding: 8px 10px; border-radius: 6px; }
+        .btn-link:hover { background: rgba(0,123,255,0.08); }
+
+        /* Question card */
         .question-item {
-            background: #fff;
-            padding: 15px;
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            background: var(--card-bg);
+            padding: 16px 18px;
+            border: 1px solid #e5e7eb;
+            border-left: 4px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             margin-bottom: 20px;
         }
-        .question-item label {
-            display: block;
-            margin-top: 10px;
+        .question-item p { margin: 0 0 6px; }
+        .question-item label { display: block; margin-top: 8px; }
+
+        .correct { color: var(--success); font-weight: 600; }
+        .wrong { color: var(--danger); font-weight: 600; }
+
+        /* Result & recommendations blocks */
+        .score-summary {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            border: 2px solid #2196f3;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            box-shadow: 0px 3px 15px rgba(0, 0, 0, 0.1);
         }
-        .correct {
-            color: green;
-        }
-        .wrong {
-            color: red;
-        }
-        .back-button{
-            position: "absolute";
-            top: 20px;
-            left: 20px;
-            background-color: #007bff;
-            color: while;
-            border: none;
-            padding: 10px, 20px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        .back-button:hover{
-                background-color: #0056b3;
-        }
+        .score-summary h3 { color: #1976d2; margin: 0 0 10px; }
+
         .recommendations-section {
             background: linear-gradient(135deg, #fff3cd 0%, #f8f9fa 100%);
             border: 2px solid #28a745;
             border-radius: 15px;
             padding: 25px;
             margin-top: 30px;
-            box-shadow: 0px 5px 20px rgba(0, 0, 0, 0.15);
+            box-shadow: 0px 5px 20px rgba(0, 0, 0, 0.12);
             animation: fadeIn 0.5s ease-in;
         }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px);} to { opacity: 1; transform: translateY(0);} }
         .recommendations-section h2 {
             color: #155724;
-            margin-bottom: 20px;
-            font-size: 24px;
+            margin: 0 0 16px;
+            font-size: 22px;
             text-align: center;
             border-bottom: 2px solid #28a745;
-            padding-bottom: 10px;
+            padding-bottom: 8px;
         }
         .recommendations-intro {
             background: #d4edda;
@@ -79,82 +133,35 @@
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0px 3px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0px 3px 10px rgba(0, 0, 0, 0.08);
             transition: transform 0.2s ease;
         }
-        .recommended-question:hover {
-            transform: translateY(-2px);
-            box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.2);
-        }
-        .recommended-question h4 {
-            color: #28a745;
-            margin-bottom: 15px;
-            font-size: 18px;
-            border-left: 4px solid #28a745;
-            padding-left: 10px;
-        }
-        .concept-tag {
-            background: #28a745;
-            color: white;
-            padding: 4px 12px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: bold;
-            display: inline-block;
-            margin-bottom: 10px;
-        }
-        .question-options {
-            background: #f8f9fa;
-            border-radius: 5px;
-            padding: 10px;
-            margin: 10px 0;
-        }
-        .correct-answer-highlight {
-            background: #d4edda;
-            color: #155724;
-            font-weight: bold;
-            padding: 8px;
-            border-radius: 5px;
-            margin-top: 10px;
-        }
-        .score-summary {
-            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
-            border: 2px solid #2196f3;
-            border-radius: 15px;
-            padding: 20px;
-            margin: 20px 0;
-            text-align: center;
-            box-shadow: 0px 3px 15px rgba(0, 0, 0, 0.1);
-        }
-        .score-summary h3 {
-            color: #1976d2;
-            margin-bottom: 10px;
-        }
-        .submit-all-btn {
-            background-color: #28a745;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 16px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 20px 0;
-        }
-        .submit-all-btn:hover {
-            background-color: #218838;
-        }
+        .recommended-question:hover { transform: translateY(-2px); box-shadow: 0px 5px 15px rgba(0, 0, 0, 0.15); }
+        .recommended-question h4 { color: #28a745; margin: 0 0 10px; font-size: 18px; border-left: 4px solid #28a745; padding-left: 10px; }
+        .question-options { background: #f8f9fa; border-radius: 5px; padding: 10px; margin: 10px 0; }
+        .correct-answer-highlight { background: #d4edda; color: #155724; font-weight: bold; padding: 8px; border-radius: 5px; margin-top: 10px; }
+
+        /* Action area */
+        .actions { display: flex; gap: 10px; margin: 16px 0 6px; }
     </style>
 </head>
 <body>
-    <button onCLick = "goBackToDashboard()">Back to Dashboard</button>
-    <h1>Questions <small id="questionType"></small></h1>
-    <div id="questionsContainer"></div>
-    <button id="submitAllBtn" class="submit-all-btn" onclick="submitAllAnswers()" style="display:none;">Submit All Answers</button>
-    <div id="recommendationsSection" class="recommendations-section" style="display:none;">
-    <h2>Recommended Questions for You</h2>
-        <p>Based on the questions you got wrong, here are some prerequisite topics you should practice:</p>
-        <div id="recommendedQuestions"></div>
-    </div>
+    <header class="topbar">
+        <div class="topbar-inner">
+            <button class="btn btn-link" onclick="goBackToDashboard()" aria-label="Back to Dashboard">← Back to Dashboard</button>
+            <div class="title">Questions <small id="questionType"></small></div>
+        </div>
+    </header>
+
+    <main class="container">
+        <div id="questionsContainer"></div>
+        <div class="actions">
+            <button id="submitAllBtn" class="btn btn-success" onclick="submitAllAnswers()" style="display:none;">Submit All Answers</button>
+            <button id="resubmitBtn" class="btn btn-primary" onclick="resubmitAnswers()" style="display:none;">Resubmit Answers</button>
+            <button id="clearAnswersBtn" class="btn btn-outline" onclick="clearAllAnswers()" style="display:none;">Clear Answers</button>
+        </div>
+        <div id="recommendationsSection" class="recommendations-section" style="display:none;"></div>
+    </main>
 
     <script>
         let questionsData = [];
@@ -255,7 +262,7 @@
 
                 // Show AI-powered recommendations if any
                 if (data.recommendations && data.recommendations.length > 0) {
-                    displayRecommendations(data.recommendations, wrongCount, data.aiInsights);
+                    displayRecommendations(data.recommendations, wrongCount, data.aiInsights, data.aiGuidance);
                 } else if (wrongCount > 0) {
                     showNoRecommendationsMessage(wrongCount, data.aiInsights);
                 } else {
@@ -295,11 +302,11 @@
             questionsContainer.insertAdjacentHTML('afterend', scoreHTML);
         }
 
-        function displayRecommendations(recommendations, wrongCount, aiInsights) {
+        function displayRecommendations(recommendations, wrongCount, aiInsights, aiGuidance) {
             const recommendedQuestionsDiv = document.getElementById('recommendedQuestions');
             
             if (recommendations.length === 0) {
-                recommendedQuestionsDiv.innerHTML = '<p>No prerequisite questions available at this time.</p>';
+                recommendedQuestionsDiv.innerHTML = '<p>No AI-generated practice available at this time.</p>';
                 return;
             }
 
@@ -319,9 +326,11 @@
 
             const recommendationsHTML = Object.values(conceptGroups).map((concept, conceptIndex) => {
                 const questionsHTML = concept.questions.map((rec, questionIndex) => {
+                    const aiBadge = rec.aiScore ? `<span style="display:inline-block;background:#e0f2fe;color:#075985;border:1px solid #93c5fd;border-radius:12px;padding:2px 8px;font-size:12px;margin-left:8px;">AI score: ${rec.aiScore}</span>` : '';
+                    const aiReason = rec.aiReason ? `<div style="background:#f0f9ff;border-left:3px solid #38bdf8;padding:8px;border-radius:6px;margin-top:8px;color:#0c4a6e;">${rec.aiReason}</div>` : '';
                     return `
                         <div class="recommended-question" style="margin-left: 20px; border-left: 3px solid #007bff; padding-left: 15px; margin-bottom: 15px;">
-                            <h4>Practice Question ${questionIndex + 1}</h4>
+                            <h4>Practice Question ${questionIndex + 1}${aiBadge}</h4>
                             <p><strong>Q:</strong> ${rec.question}</p>
                             <div class="question-options">
                                 <p><strong>Options:</strong></p>
@@ -335,6 +344,7 @@
                             <div class="correct-answer-highlight">
                                 <strong>Correct Answer:</strong> Option ${rec.correctAnswer}
                             </div>
+                            ${aiReason}
                         </div>
                     `;
                 }).join('');
@@ -371,23 +381,23 @@
                 `;
             }
 
+            const aiGuidanceBlock = aiGuidance ? `
+                <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #28a745;">
+                    <h4>${aiGuidance.title || 'Smart Learning Path Generated!'}</h4>
+                    <p><strong>Analysis:</strong> ${aiGuidance.analysis || `You got ${wrongCount} question(s) wrong on advanced topics.`}</p>
+                    <p><strong>Solution:</strong> ${aiGuidance.solution || `We identified ${recommendations.length} prerequisite questions from foundational concepts.`}</p>
+                    <p><strong>How this helps:</strong> ${aiGuidance.howHelps || 'Master simpler concepts first → build foundation → retry original questions.'}</p>
+                </div>`
+            : `<div style="background:#fffaf0;border:1px dashed #f59e0b;padding:12px;border-radius:8px;color:#92400e;">AI guidance is unavailable. Please review the recommended practice below.</div>`;
+
             const sectionContent = `
                 <h2>AI-Enhanced Knowledge Graph Recommendations</h2>
                 <div class="recommendations-intro">
-                    <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #28a745;">
-                        <h4>Smart Learning Path Generated!</h4>
-                        <p><strong>Analysis:</strong> You got ${wrongCount} question(s) wrong on advanced topics.</p>
-                        <p><strong>Solution:</strong> Our Knowledge Graph identified ${recommendations.length} prerequisite questions from foundational concepts that these advanced topics depend on.</p>
-                        
-                        <p><strong>How this helps:</strong> Master these simpler concepts first -> Build strong foundation -> Retry original questions with better understanding!</p>
-                    </div>
-                    
+                    ${aiGuidanceBlock}
                     ${aiInsightsHTML}
-                    
                     <h3>Practice These Prerequisites First:</h3>
                 </div>
                 <div id="recommendedQuestions">${recommendationsHTML}</div>
-                
                 <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin-top: 20px; border-left: 4px solid #ffc107;">
                     <p><strong>Next Steps:</strong></p>
                     <ol>
@@ -432,16 +442,8 @@
                     ${aiInsightsHTML}
                     
                     <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #007bff;">
-                        <h4>What our Knowledge Graph discovered:</h4>
-                        <p>The questions you missed are currently not linked to our prerequisite knowledge graph, or no foundational questions exist for the failed concepts yet.</p>
-                        
-                        <p><strong>How the AI-Enhanced Knowledge Graph works:</strong></p>
-                        <ul>
-                            <li>Advanced topics (like Dynamic Programming) depend on simpler ones (like Recursion)</li>
-                            <li>When you fail an advanced question, we recommend practice on prerequisite concepts</li>
-                            <li>Our Gemini AI provides personalized learning insights for each failed concept</li>
-                            <li>This creates an intelligent learning path based on concept dependencies + AI tutoring</li>
-                        </ul>
+                        <h4>About AI Recommendations</h4>
+                        <p>We generate personalized practice using Gemini based on your missed topics. No suitable items were produced this time.</p>
                     </div>
                     
                     <p><strong>For now:</strong> ${aiInsights && aiInsights.length > 0 ? 'Follow the AI tutor insights above and' : ''} Review the correct answers above and practice similar questions. As more prerequisite questions are added to our knowledge graph, you'll receive smarter recommendations!</p>
@@ -509,7 +511,9 @@
         });
 
         function goBackToDashboard(){
-            window.location.href = '/studentdashboard';
+            // Try to close the tab (works only if opened via script), otherwise fallback to redirect
+            window.close();
+            setTimeout(() => { window.location.href = '/studentdashboard'; }, 100);
         }
         
         function handleAnswerChange(questionIndex) {

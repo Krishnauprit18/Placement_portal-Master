@@ -11,10 +11,37 @@
             padding: 0;
             background-color: #f4f4f4;
             display: flex;
-            justify-content: center;
+            flex-direction: column; /* stack header and container */
+            justify-content: flex-start;
             align-items: center;
             height: 100vh;
         }
+        .topbar {
+            position: sticky;
+            top: 0;
+            width: 100%;
+            background: #ffffff;
+            padding: 10px 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            z-index: 100;
+        }
+        .topbar-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+        }
+        .back-button {
+            background: #0d6efd;
+            color: #fff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+            font-weight: 600;
+        }
+        .back-button:hover { background: #0b5ed7; }
         .container {
             max-width: 1200px;
             margin: 20px;
@@ -77,6 +104,11 @@
     </style>
 </head>
 <body>
+    <div class="topbar">
+        <div class="topbar-inner">
+            <button class="back-button" onclick="goBack()">Back</button>
+        </div>
+    </div>
     <div class="container">
         <h1>Placement Mock Tests</h1>
 
@@ -141,5 +173,13 @@
         </div>
 
     </div>
+    <script>
+        function goBack() {
+            // Attempt to close current tab
+            window.close();
+            // Fallback redirect if close is blocked
+            setTimeout(() => { window.location.href = '/studentdashboard'; }, 100);
+        }
+    </script>
 </body>
 </html>
