@@ -177,9 +177,12 @@
 
             <label for="concept_id">Associated Concept (Optional):</label>
             <select id="concept_id" name="concept_id">
-                <option value="">Select Concept (Optional)</option>
-                <!-- Options will be loaded dynamically -->
+                <option value="">-- No Concept (Optional) --</option>
+                <!-- Options will be loaded dynamically from /concepts endpoint -->
             </select>
+            <small style="color: #666; display: block; margin-top: -15px; margin-bottom: 15px;">
+                💡 Select a concept to link this question for AI-powered recommendations
+            </small>
 
             <div class="btn-container">
                 <button type="submit" class="btn-submit">
@@ -267,42 +270,57 @@
         // Handle form submission
         document.getElementById('uploadForm').addEventListener('submit', async function(event) {
             event.preventDefault();
-            
-            const formData = new FormData(this);
+
             const loadingMessage = document.getElementById('loadingMessage');
             const successMessage = document.getElementById('successMessage');
             const errorMessage = document.getElementById('errorMessage');
             const submitBtn = document.querySelector('.btn-submit');
-            
+
             // Show loading state
             loadingMessage.style.display = 'block';
             successMessage.style.display = 'none';
             errorMessage.style.display = 'none';
             submitBtn.disabled = true;
             submitBtn.textContent = 'Uploading...';
-            
+
             try {
                 console.log('Uploading question...');
-                
-                // Debug: Log form data
-                console.log('📋 Form data being sent:');
-                for (let [key, value] of formData.entries()) {
-                    console.log(`  ${key}: ${value}`);
-                }
-                
+
+                // Get form values and create JSON payload
+                const conceptIdValue = document.getElementById('concept_id').value;
+
+                const payload = {
+                    question: document.getElementById('question').value.trim(),
+                    option1: document.getElementById('option1').value.trim(),
+                    option2: document.getElementById('option2').value.trim(),
+                    option3: document.getElementById('option3').value.trim(),
+                    option4: document.getElementById('option4').value.trim(),
+                    correctAnswer: parseInt(document.getElementById('correctAnswer').value),
+                    question_type: document.getElementById('hiddenQuestionType').value,
+                    facultyName: document.getElementById('hiddenFacultyName').value,
+                    concept_id: conceptIdValue === '' ? null : parseInt(conceptIdValue)
+                };
+
+                // Debug: Log payload
+                console.log('📋 Payload being sent:', payload);
+                console.log('📌 Concept ID:', payload.concept_id, '(type:', typeof payload.concept_id + ')');
+
                 const response = await fetch('/upload', {
                     method: 'POST',
-                    body: formData
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
                 });
-                
+
                 console.log('📡 Response status:', response.status);
                 const data = await response.json();
-                console.log('Response data:', data);
-                
+                console.log('📥 Response data:', data);
+
                 loadingMessage.style.display = 'none';
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Upload Question';
-                
+
                 if (data.success) {
                     successMessage.style.display = 'block';
                     this.reset();
@@ -318,7 +336,7 @@
                 loadingMessage.style.display = 'none';
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Upload Question';
-                
+
                 document.getElementById('errorText').textContent = 'Network error. Please check your connection and try again.';
                 errorMessage.style.display = 'block';
                 errorMessage.scrollIntoView({ behavior: 'smooth' });

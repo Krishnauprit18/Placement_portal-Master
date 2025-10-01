@@ -550,9 +550,13 @@
             }
 
         function viewQuestions(question_type) {
+        console.log('🔍 Fetching questions for:', question_type);
+
         fetch(`/questions/${question_type}`)
             .then(response => response.json())
             .then(data => {
+                console.log(`📥 Received ${data.length} question(s) for ${question_type}`);
+
                 if (data && data.length > 0) {
                     const questionsHTML = data.map((questionData, index) => {
                         const { question, option1, option2, option3, option4, correctAnswer } = questionData;
@@ -621,10 +625,14 @@
                         </html>
                     `);
                 } else {
-                    console.error('No questions found.');
+                    console.warn(`⚠️  No questions found for ${question_type}`);
+                    alert(`No questions available for ${question_type}.\n\nFaculty has not uploaded any questions for this subject yet.`);
                 }
             })
-            .catch(error => console.error('Error fetching questions:', error));
+            .catch(error => {
+                console.error('❌ Error fetching questions:', error);
+                alert(`Error loading questions for ${question_type}.\n\nPlease try again later.`);
+            });
     }
     function viewQuestions(question_type) {
             window.location.href = `result.html?question_type=${question_type}`;

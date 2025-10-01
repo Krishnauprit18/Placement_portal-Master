@@ -32,45 +32,60 @@ app.get('/ping', (req, res) => {
 // Test database connection endpoint
 app.get('/test-db', (req, res) => {
     console.log('Testing database connection...');
-    
+
     // Test basic connection
     pool.query('SELECT 1 as test', (err, result) => {
         if (err) {
             console.error('Database connection failed:', err);
-            return res.status(500).json({ 
-                success: false, 
+            return res.status(500).json({
+                success: false,
                 message: 'Database connection failed',
-                error: err.message 
+                error: err.message
             });
         }
-        
-    console.log('Basic database connection successful');
-        
+
+        console.log('Basic database connection successful');
+
         // Test questions table
-        pool.query('DESCRIBE questions', (err, result) => {
+        pool.query('DESCRIBE questions', (err, describeResult) => {
             if (err) {
                 console.error('Questions table not found or accessible:', err);
-                return res.status(500).json({ 
-                    success: false, 
+                return res.status(500).json({
+                    success: false,
                     message: 'Questions table not accessible',
                     error: err.message,
                     suggestion: 'Run the database setup SQL script'
                 });
             }
-            
-            console.log('Questions table structure:', result);
-            
+
+            console.log('Questions table structure:', describeResult);
+
             // Check if concept_id column exists
-            const hasConceptId = result.some(column => column.Field === 'concept_id');
-            
-            res.status(200).json({ 
-                success: true, 
-                message: 'Database connection successful',
-                tables: {
-                    questions: 'exists',
-                    concept_id_column: hasConceptId ? 'exists' : 'missing'
-                },
-                columns: result.map(col => col.Field)
+            const hasConceptId = describeResult.some(column => column.Field === 'concept_id');
+            const hasId = describeResult.some(column => column.Field === 'id');
+
+            // Count questions
+            pool.query('SELECT COUNT(*) as count FROM questions', (err, countResult) => {
+                const questionCount = err ? 'error' : countResult[0].count;
+
+                res.status(200).json({
+                    success: true,
+                    message: 'Database connection successful',
+                    tables: {
+                        questions: 'exists',
+                        id_column: hasId ? 'exists' : 'MISSING',
+                        concept_id_column: hasConceptId ? 'exists' : 'missing'
+                    },
+                    columns: describeResult.map(col => ({
+                        name: col.Field,
+                        type: col.Type,
+                        null: col.Null,
+                        key: col.Key,
+                        default: col.Default,
+                        extra: col.Extra
+                    })),
+                    questionCount: questionCount
+                });
             });
         });
     });
@@ -102,8 +117,8 @@ let geminiModel = null;
 if (process.env.GEMINI_AI_ENABLED === 'true' && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE') {
     try {
         genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        geminiModel = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    console.log('Gemini AI initialized successfully');
+        geminiModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    console.log('Gemini AI initialized successfully with model: gemini-2.5-flash');
     } catch (error) {
     console.error('Failed to initialize Gemini AI:', error);
         geminiModel = null;
@@ -315,7 +330,7 @@ app.use(bodyParser.json());
 app.post('/upload', async (req, res) => {
     console.log('Raw request body received:', req.body);
     console.log('Request headers:', req.headers['content-type']);
-    
+
     const { question, option1, option2, option3, option4, correctAnswer, question_type, facultyName, concept_id } = req.body;
 
     console.log('Question Upload Request:', {
@@ -325,23 +340,37 @@ app.post('/upload', async (req, res) => {
         correctAnswer
     });
 
-    try {
-        await saveQuestionToDatabase(question, option1, option2, option3, option4, correctAnswer, question_type, concept_id);
-    console.log('Question saved successfully to database');
+    // Validate required fields
+    if (!question || !option1 || !option2 || !option3 || !option4 || !correctAnswer || !question_type) {
+        console.error('Validation failed: Missing required fields');
+        return res.status(400).json({
+            success: false,
+            message: 'All fields (question, options, correctAnswer, question_type) are required.'
+        });
+    }
 
-        const numberOfQuestions = 1; 
+    try {
+        const result = await saveQuestionToDatabase(question, option1, option2, option3, option4, correctAnswer, question_type, concept_id);
+        console.log('✅ Question saved successfully to database with ID:', result.insertId);
+
+        const numberOfQuestions = 1;
 
         const currentDateTime = getCurrentTimeinIST();
 
         pool.query('SELECT email FROM users WHERE userType = "student"', async (err, results) => {
             if (err) {
                 console.error('Error fetching student emails:', err);
-                res.status(500).send('Error fetching student emails.');
-                return;
+                // Don't fail the upload if email fetch fails
+                console.warn('Question saved but email notification failed');
+                return res.status(200).json({
+                    success: true,
+                    message: 'Question uploaded successfully but email notifications failed.',
+                    questionId: result.insertId
+                });
             }
 
-            for (const result of results) {
-                const studentEmail = result.email;
+            for (const studentResult of results) {
+                const studentEmail = studentResult.email;
 
                 const subject = 'New Questions Uploaded';
                 const text = `No. of Questions - ${numberOfQuestions} Question/Questions has uploaded for ${question_type} at ${currentDateTime}.`;
@@ -354,56 +383,102 @@ app.post('/upload', async (req, res) => {
                 }
             }
 
-            res.status(200).json({ success: true, message: 'Questions uploaded and notifications sent successfully!' });
+            res.status(200).json({
+                success: true,
+                message: 'Questions uploaded and notifications sent successfully!',
+                questionId: result.insertId
+            });
         });
     } catch (error) {
-        console.error('Error uploading questions:', error);
-        res.status(500).json({ success: false, message: 'An error occurred while uploading questions.' });
+        console.error('❌ Error uploading questions:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message || 'An error occurred while uploading questions.',
+            error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 });
 
 function saveQuestionToDatabase(question, option1, option2, option3, option4, correctAnswer, question_type, concept_id) {
     return new Promise((resolve, reject) => {
-        // Handle null/undefined concept_id
-        const conceptIdToSave = concept_id === '' || concept_id === 'undefined' ? null : concept_id;
-        
-        console.log('💾 Saving question with concept validation. concept_id:', conceptIdToSave);
-        
-    // NEW: Validate concept_id exists in concepts table if provided
+        // Handle null/undefined concept_id - normalize to null or integer
+        let conceptIdToSave = null;
+
+        if (concept_id !== null && concept_id !== undefined && concept_id !== '' && concept_id !== 'undefined') {
+            const parsedId = parseInt(concept_id);
+            if (!isNaN(parsedId) && parsedId > 0) {
+                conceptIdToSave = parsedId;
+            }
+        }
+
+        console.log('💾 Starting question save process...');
+        console.log('📋 Question details:', {
+            question_type,
+            concept_id_raw: concept_id,
+            concept_id_processed: conceptIdToSave,
+            concept_id_type: typeof conceptIdToSave,
+            correctAnswer,
+            questionLength: question?.length || 0
+        });
+
+        // NEW: Validate concept_id exists in concepts table if provided
         if (conceptIdToSave) {
-            console.log('Validating concept_id exists in database...');
+            console.log(`🔍 Validating concept_id: ${conceptIdToSave} (type: ${typeof conceptIdToSave})`);
             pool.query('SELECT id, name FROM concepts WHERE id = ?', [conceptIdToSave], (err, conceptRows) => {
                 if (err) {
-                    console.error('Error validating concept:', err);
-                    return reject(new Error('Failed to validate concept'));
+                    console.error('❌ Database error while validating concept:', err);
+                    return reject(new Error('Failed to validate concept: ' + err.message));
                 }
-                
+
                 if (conceptRows.length === 0) {
-                    console.error(`Invalid concept_id: ${conceptIdToSave}. Concept does not exist.`);
+                    console.error(`❌ Invalid concept_id: ${conceptIdToSave}. Concept does not exist.`);
                     return reject(new Error(`Invalid concept_id: ${conceptIdToSave}. Please create the concept first or select an existing one.`));
                 }
-                
+
                 const conceptName = conceptRows[0].name;
-                console.log(`Concept validation passed: "${conceptName}" (ID: ${conceptIdToSave})`);
-                
+                console.log(`✅ Concept validation passed: "${conceptName}" (ID: ${conceptIdToSave})`);
+
                 // Save the question after validation
                 saveQuestionWithValidatedConcept();
             });
         } else {
-            console.log('No concept_id provided, saving question without concept linking');
+            console.log('ℹ️  No concept_id provided (value was: ' + JSON.stringify(concept_id) + '), saving question without concept linking');
             saveQuestionWithValidatedConcept();
         }
-        
+
         function saveQuestionWithValidatedConcept() {
             const sql = `INSERT INTO questions (question, option1, option2, option3, option4, correctAnswer, question_type, concept_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
-            pool.query(sql, [question, option1, option2, option3, option4, correctAnswer, question_type, conceptIdToSave], (err, result) => {
+            const values = [question, option1, option2, option3, option4, correctAnswer, question_type, conceptIdToSave];
+
+            console.log('🗄️  Executing INSERT query...');
+            console.log('📝 Query:', sql);
+            console.log('📦 Values preview:', {
+                question: question?.substring(0, 50),
+                option1: option1?.substring(0, 30),
+                correctAnswer,
+                question_type,
+                concept_id: conceptIdToSave
+            });
+
+            pool.query(sql, values, (err, result) => {
                 if (err) {
-                    console.error('Error saving question to database:', err);
-                    console.error('SQL:', sql);
-                    console.error('Values:', [question?.substring(0,30), option1?.substring(0,20), option2?.substring(0,20), option3?.substring(0,20), option4?.substring(0,20), correctAnswer, question_type, conceptIdToSave]);
-                    reject(err);
+                    console.error('❌ DATABASE INSERT FAILED!');
+                    console.error('Error details:', {
+                        code: err.code,
+                        errno: err.errno,
+                        sqlMessage: err.sqlMessage,
+                        sql: err.sql
+                    });
+                    console.error('Full error:', err);
+
+                    // Return detailed error message
+                    return reject(new Error(`Database error: ${err.sqlMessage || err.message}`));
                 } else {
-                    console.log(`Question saved successfully! ID: ${result.insertId}, Concept: ${conceptIdToSave || 'None'}`);
+                    console.log(`✅ ✅ ✅ QUESTION SAVED SUCCESSFULLY! ✅ ✅ ✅`);
+                    console.log(`📊 Insert ID: ${result.insertId}`);
+                    console.log(`🏷️  Concept ID: ${conceptIdToSave !== null ? conceptIdToSave : 'NULL (No concept linked)'}`);
+                    console.log(`📝 Question Type: ${question_type}`);
+                    console.log(`✔️  Correct Answer: Option ${correctAnswer}`);
                     resolve(result);
                 }
             });
@@ -479,13 +554,24 @@ async function sendNotificationEmail(userEmail, subject, text, html) {
 
 app.get('/questions/:question_type', (req, res) => {
     const questionType = req.params.question_type;
+
+    console.log('📚 Student requesting questions for:', questionType);
+
     const sql = `SELECT question, option1, option2, option3, option4, correctAnswer FROM questions WHERE question_type = ?`;
     pool.query(sql, [questionType], (err, results) => {
         if (err) {
-            console.error('Error fetching questions: ' + err.stack);
+            console.error('❌ Error fetching questions for', questionType, ':', err.stack);
             res.status(500).send({ error: 'Failed to fetch questions' });
             return;
         }
+
+        console.log(`✅ Found ${results.length} question(s) for ${questionType}`);
+        if (results.length === 0) {
+            console.log(`⚠️  No questions uploaded yet for ${questionType}`);
+        } else {
+            console.log(`📋 Questions IDs for ${questionType}:`, results.map((_, idx) => idx + 1));
+        }
+
         res.send(results);
     });
 });
@@ -1103,18 +1189,33 @@ app.get('/recommend-prerequisites/:questionId', async (req, res) => {
 
 
 function keepServerAlive() {
+    // Check if keep-alive is enabled via environment variable
+    const keepAliveEnabled = String(process.env.KEEP_ALIVE_ENABLED).toLowerCase() !== 'false';
+
+    if (!keepAliveEnabled) {
+        console.log('Keep-alive ping disabled via KEEP_ALIVE_ENABLED=false');
+        return;
+    }
+
+    // Use configurable URL with fallback to localhost
+    const keepAliveUrl = process.env.KEEP_ALIVE_URL || `http://localhost:${process.env.PORT || 3000}/ping`;
+    const keepAliveInterval = parseInt(process.env.KEEP_ALIVE_INTERVAL) || 300000; // Default 5 minutes
+
+    console.log(`Keep-alive enabled: pinging ${keepAliveUrl} every ${keepAliveInterval/1000}s`);
+
     setInterval(() => {
-        https.get('https://placementportal-ktlv.onrender.com/ping', (res) => { 
+        const protocol = keepAliveUrl.startsWith('https') ? https : require('http');
+        protocol.get(keepAliveUrl, (res) => {
             res.on('data', (chunk) => {
                 console.log(`Ping response: ${chunk}`);
             });
             res.on('end', () => {
-                console.log('Server is alive');
+                console.log(`Server keep-alive successful (${new Date().toISOString()})`);
             });
         }).on('error', (err) => {
             console.error('Error pinging the server:', err.message);
         });
-    }, 300000); 
+    }, keepAliveInterval);
 }
 
 function keepDatabaseAlive() {
