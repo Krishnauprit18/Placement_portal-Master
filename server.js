@@ -13,7 +13,10 @@ const multer = require('multer');
 const upload = multer();
 
 // Gemini AI Integration
-const { GoogleGenerativeAI } = require('@google/generative-ai'); 
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+
+// PDF Generation
+const PDFDocument = require('pdfkit'); 
 
 
 const moment = require('moment-timezone');
@@ -707,6 +710,217 @@ app.post('/submitAnswers', async (req, res) => {
     } catch (error) {
     console.error('Critical error in submitAnswers:', error);
         res.status(500).send({ error: 'Internal server error' });
+    }
+});
+
+// PDF Generation Endpoint for AI Recommendations
+app.post('/generate-recommendations-pdf', (req, res) => {
+    try {
+        const { recommendations, aiInsights, aiGuidance, summary } = req.body;
+
+        // Create a new PDF document
+        const doc = new PDFDocument({
+            margins: { top: 50, bottom: 50, left: 50, right: 50 },
+            size: 'A4'
+        });
+
+        // Set response headers for PDF download
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'attachment; filename=AI_Learning_Recommendations.pdf');
+
+        // Pipe the PDF to the response
+        doc.pipe(res);
+
+        // Helper function to add wrapped text
+        function addWrappedText(text, fontSize = 12, options = {}) {
+            doc.fontSize(fontSize).text(text, {
+                width: 495,
+                align: options.align || 'left',
+                ...options
+            });
+        }
+
+        // Title
+        doc.fontSize(24).fillColor('#1976d2').text('AI-Enhanced Learning Recommendations', {
+            align: 'center',
+            underline: true
+        });
+        doc.moveDown(1.5);
+
+        // Summary Section
+        if (summary) {
+            doc.fontSize(16).fillColor('#333').text('Test Summary', { underline: true });
+            doc.moveDown(0.5);
+            doc.fontSize(12).fillColor('#000')
+                .text(`Total Questions: ${summary.totalQuestions}`)
+                .text(`Correct Answers: ${summary.correctAnswers}`)
+                .text(`Score: ${summary.score}`)
+                .text(`AI Recommendations Generated: ${summary.recommendationsCount}`)
+                .text(`AI Insights Provided: ${summary.aiInsightsCount}`);
+            doc.moveDown(1.5);
+        }
+
+        // AI Guidance Section
+        if (aiGuidance) {
+            doc.fontSize(16).fillColor('#28a745').text('Smart Learning Path', { underline: true });
+            doc.moveDown(0.5);
+
+            if (aiGuidance.title) {
+                doc.fontSize(14).fillColor('#333').text(aiGuidance.title, { bold: true });
+                doc.moveDown(0.3);
+            }
+
+            if (aiGuidance.analysis) {
+                doc.fontSize(11).fillColor('#000').text('Analysis: ', { continued: true, bold: true })
+                    .fontSize(11).text(aiGuidance.analysis, { bold: false });
+                doc.moveDown(0.3);
+            }
+
+            if (aiGuidance.solution) {
+                doc.fontSize(11).fillColor('#000').text('Solution: ', { continued: true, bold: true })
+                    .fontSize(11).text(aiGuidance.solution, { bold: false });
+                doc.moveDown(0.3);
+            }
+
+            if (aiGuidance.howHelps) {
+                doc.fontSize(11).fillColor('#000').text('How this helps: ', { continued: true, bold: true })
+                    .fontSize(11).text(aiGuidance.howHelps, { bold: false });
+            }
+
+            doc.moveDown(1.5);
+        }
+
+        // AI Insights Section
+        if (aiInsights && aiInsights.length > 0) {
+            doc.fontSize(16).fillColor('#2196f3').text('Personalized Learning Insights from Gemini AI', { underline: true });
+            doc.moveDown(0.5);
+
+            aiInsights.forEach((insight, index) => {
+                if (insight.failedConcept && insight.failedConcept.name) {
+                    doc.fontSize(13).fillColor('#1976d2')
+                        .text(`Topic ${index + 1}: ${insight.failedConcept.name}`, { bold: true });
+                    doc.moveDown(0.3);
+                }
+
+                if (insight.insights) {
+                    doc.fontSize(11).fillColor('#000').text(insight.insights, {
+                        width: 495,
+                        align: 'justify'
+                    });
+                }
+
+                doc.moveDown(1);
+            });
+
+            doc.moveDown(0.5);
+        }
+
+        // Practice Questions Section
+        if (recommendations && recommendations.length > 0) {
+            // Group by concept
+            const conceptGroups = {};
+            recommendations.forEach(rec => {
+                const conceptName = rec.concept_name || 'General Topics';
+                if (!conceptGroups[conceptName]) {
+                    conceptGroups[conceptName] = [];
+                }
+                conceptGroups[conceptName].push(rec);
+            });
+
+            doc.addPage();
+            doc.fontSize(18).fillColor('#28a745').text('Recommended Practice Questions', {
+                align: 'center',
+                underline: true
+            });
+            doc.moveDown(1);
+
+            Object.keys(conceptGroups).forEach((conceptName, conceptIndex) => {
+                const questions = conceptGroups[conceptName];
+
+                // Concept Header
+                doc.fontSize(15).fillColor('#155724').text(`Prerequisite Concept: ${conceptName}`, {
+                    underline: true
+                });
+                doc.moveDown(0.5);
+
+                questions.forEach((rec, qIndex) => {
+                    // Check if we need a new page
+                    if (doc.y > 650) {
+                        doc.addPage();
+                    }
+
+                    // Question number and AI score
+                    let questionHeader = `Question ${qIndex + 1}`;
+                    if (rec.aiScore) {
+                        questionHeader += ` (AI Priority Score: ${rec.aiScore}/5)`;
+                    }
+
+                    doc.fontSize(12).fillColor('#007bff').text(questionHeader, { bold: true });
+                    doc.moveDown(0.3);
+
+                    // Question text
+                    if (rec.question) {
+                        doc.fontSize(11).fillColor('#000').text(`Q: ${rec.question}`, {
+                            width: 495,
+                            align: 'justify'
+                        });
+                        doc.moveDown(0.3);
+                    }
+
+                    // Options
+                    doc.fontSize(10).fillColor('#333')
+                        .text(`  1) ${rec.option1 || 'N/A'}`)
+                        .text(`  2) ${rec.option2 || 'N/A'}`)
+                        .text(`  3) ${rec.option3 || 'N/A'}`)
+                        .text(`  4) ${rec.option4 || 'N/A'}`);
+                    doc.moveDown(0.3);
+
+                    // Correct Answer
+                    doc.fontSize(11).fillColor('#155724').text(`Correct Answer: Option ${rec.correctAnswer}`, {
+                        bold: true
+                    });
+                    doc.moveDown(0.3);
+
+                    // AI Reason (if available)
+                    if (rec.aiReason) {
+                        doc.fontSize(10).fillColor('#075985').text(`Why this helps: ${rec.aiReason}`, {
+                            width: 495,
+                            align: 'justify',
+                            italic: true
+                        });
+                    }
+
+                    doc.moveDown(1);
+                });
+
+                doc.moveDown(0.5);
+            });
+        }
+
+        // Footer
+        doc.addPage();
+        doc.fontSize(14).fillColor('#333').text('Next Steps', { underline: true });
+        doc.moveDown(0.5);
+        doc.fontSize(11).fillColor('#000')
+            .text('1. Read the AI tutor insights above for personalized learning tips')
+            .text('2. Practice the prerequisite questions provided')
+            .text('3. Make sure you understand why each answer is correct')
+            .text('4. Retake the original questions to see your improvement');
+        doc.moveDown(1);
+
+        doc.fontSize(10).fillColor('#666').text('Generated by NMIMS Placement Portal - AI-Enhanced Learning System', {
+            align: 'center'
+        });
+        doc.fontSize(9).fillColor('#999').text(`Generated on: ${new Date().toLocaleString()}`, {
+            align: 'center'
+        });
+
+        // Finalize the PDF
+        doc.end();
+
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        res.status(500).json({ success: false, message: 'Failed to generate PDF', error: error.message });
     }
 });
 

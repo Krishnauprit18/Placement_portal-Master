@@ -143,6 +143,99 @@
 
         /* Action area */
         .actions { display: flex; gap: 10px; margin: 16px 0 6px; }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+        }
+        .loading-overlay.show { display: flex; }
+
+        .loading-content {
+            background: white;
+            padding: 40px 50px;
+            border-radius: 20px;
+            box-shadow: 0 10px 50px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 400px;
+        }
+
+        /* Spinner Animation */
+        .spinner {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 20px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* AI Brain Animation */
+        .ai-brain {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            position: relative;
+        }
+
+        .ai-brain::before {
+            content: "🧠";
+            font-size: 60px;
+            position: absolute;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .loading-text {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .loading-subtext {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        /* Progress dots */
+        .loading-dots {
+            display: inline-block;
+            margin-left: 5px;
+        }
+
+        .loading-dots span {
+            animation: blink 1.4s infinite;
+            animation-fill-mode: both;
+        }
+
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes blink {
+            0%, 80%, 100% { opacity: 0; }
+            40% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -152,6 +245,19 @@
             <div class="title">Questions <small id="questionType"></small></div>
         </div>
     </header>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="ai-brain"></div>
+            <div class="loading-text">
+                Analyzing Your Answers<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>
+            </div>
+            <div class="loading-subtext">
+                Gemini AI is generating personalized recommendations based on your performance
+            </div>
+        </div>
+    </div>
 
     <main class="container">
         <div id="questionsContainer"></div>
@@ -208,6 +314,9 @@
                 return;
             }
 
+            // Show loading overlay
+            showLoading();
+
             const questionType = getQueryParameter('question_type');
 
             fetch('/submitAnswers', {
@@ -219,6 +328,8 @@
             })
             .then(response => response.json())
             .then(data => {
+                // Hide loading overlay
+                hideLoading();
                 hasSubmittedAll = true;
                 
                 // Update individual question results
@@ -260,9 +371,9 @@
                 // Show score summary
                 showScoreSummary(correctCount, totalQuestions, scorePercentage, data.summary);
 
-                // Show AI-powered recommendations if any
+                // Show PDF download button for AI recommendations
                 if (data.recommendations && data.recommendations.length > 0) {
-                    displayRecommendations(data.recommendations, wrongCount, data.aiInsights, data.aiGuidance);
+                    showPDFDownloadOption(data.recommendations, wrongCount, data.aiInsights, data.aiGuidance, data.summary);
                 } else if (wrongCount > 0) {
                     showNoRecommendationsMessage(wrongCount, data.aiInsights);
                 } else {
@@ -270,9 +381,12 @@
                 }
             })
             .catch(error => {
+                // Hide loading overlay on error
+                hideLoading();
+
                 console.error('Error submitting answers:', error);
                 alert('Error submitting answers. Please try again.');
-                
+
                 // Reset button states on error
                 const resubmitBtn = document.getElementById('resubmitBtn');
                 if (resubmitBtn) {
@@ -281,6 +395,34 @@
                     resubmitBtn.style.display = 'inline-block';
                 }
             });
+        }
+
+        // Loading overlay control functions
+        function showLoading(title = 'Analyzing Your Answers', subtitle = 'Gemini AI is generating personalized recommendations based on your performance') {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                // Update text if custom message provided
+                const loadingText = overlay.querySelector('.loading-text');
+                const loadingSubtext = overlay.querySelector('.loading-subtext');
+
+                if (loadingText) {
+                    loadingText.innerHTML = title + '<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>';
+                }
+                if (loadingSubtext) {
+                    loadingSubtext.textContent = subtitle;
+                }
+
+                overlay.classList.add('show');
+                document.body.style.overflow = 'hidden'; // Prevent scrolling
+            }
+        }
+
+        function hideLoading() {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.classList.remove('show');
+                document.body.style.overflow = ''; // Re-enable scrolling
+            }
         }
 
         function showScoreSummary(correctCount, totalQuestions, scorePercentage, summary) {
@@ -300,6 +442,88 @@
             
             const questionsContainer = document.getElementById('questionsContainer');
             questionsContainer.insertAdjacentHTML('afterend', scoreHTML);
+        }
+
+        function showPDFDownloadOption(recommendations, wrongCount, aiInsights, aiGuidance, summary) {
+            const sectionContent = `
+                <h2>AI-Enhanced Knowledge Graph Recommendations Ready!</h2>
+                <div class="recommendations-intro">
+                    <div style="background: #e8f5e8; padding: 20px; border-radius: 12px; margin: 15px 0; border-left: 4px solid #28a745; text-align: center;">
+                        <h3 style="color: #155724; margin-top: 0;">📄 Your Personalized Learning Report is Ready</h3>
+                        <p style="color: #333; font-size: 15px; line-height: 1.6;">
+                            Gemini AI has generated <strong>${recommendations.length} personalized practice questions</strong>
+                            ${aiInsights && aiInsights.length > 0 ? `and <strong>${aiInsights.length} learning insights</strong>` : ''}
+                            based on your performance.
+                        </p>
+                        <p style="color: #666; font-size: 14px;">
+                            The report includes prerequisite concepts, practice questions with answers, and AI-powered learning guidance.
+                        </p>
+                        <button onclick="downloadRecommendationsPDF()" class="btn btn-success" style="font-size: 16px; padding: 15px 30px; margin-top: 15px; cursor: pointer;">
+                            📥 Download AI Learning Report (PDF)
+                        </button>
+                        <p style="color: #999; font-size: 12px; margin-top: 10px;">
+                            The PDF will be professionally formatted and ready to print or study offline.
+                        </p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('recommendationsSection').innerHTML = sectionContent;
+            document.getElementById('recommendationsSection').style.display = 'block';
+
+            // Store data for PDF generation
+            window.recommendationsData = {
+                recommendations: recommendations,
+                aiInsights: aiInsights,
+                aiGuidance: aiGuidance,
+                summary: summary
+            };
+        }
+
+        function downloadRecommendationsPDF() {
+            if (!window.recommendationsData) {
+                alert('No recommendations data available');
+                return;
+            }
+
+            // Show loading with custom message for PDF generation
+            showLoading('Generating Your PDF Report', 'Creating a professionally formatted PDF with all recommendations...');
+
+            fetch('/generate-recommendations-pdf', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(window.recommendationsData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to generate PDF');
+                }
+                return response.blob();
+            })
+            .then(blob => {
+                // Hide loading
+                hideLoading();
+
+                // Create download link
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'AI_Learning_Recommendations.pdf';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                // Show success message
+                alert('PDF downloaded successfully! Check your downloads folder.');
+            })
+            .catch(error => {
+                hideLoading();
+                console.error('Error downloading PDF:', error);
+                alert('Failed to download PDF. Please try again.');
+            });
         }
 
         function displayRecommendations(recommendations, wrongCount, aiInsights, aiGuidance) {
@@ -553,14 +777,7 @@
         
         function resubmitAnswers() {
             console.log('Starting resubmission process...');
-            
-            // Show loading state
-            const resubmitBtn = document.getElementById('resubmitBtn');
-            if (resubmitBtn) {
-                resubmitBtn.textContent = 'Resubmitting...';
-                resubmitBtn.disabled = true;
-            }
-            
+
             // Clear previous results
             questionsData.forEach((_, index) => {
                 const statusDiv = document.getElementById(`status-${index}`);
@@ -568,27 +785,27 @@
                     statusDiv.innerHTML = '<span style="color: #6c757d;">Evaluating...</span>';
                 }
             });
-            
+
             // Clear score summary
             const existingScoreSummary = document.querySelector('.score-summary');
             if (existingScoreSummary) {
                 existingScoreSummary.remove();
             }
-            
+
             // Hide recommendations section
             const recommendationsSection = document.getElementById('recommendationsSection');
             if (recommendationsSection) {
                 recommendationsSection.style.display = 'none';
             }
-            
+
             // Reset submission state temporarily
             hasSubmittedAll = false;
-            
+
             // Hide resubmit buttons
             document.getElementById('resubmitBtn').style.display = 'none';
             document.getElementById('clearAnswersBtn').style.display = 'none';
-            
-            // Submit the new answers
+
+            // Submit the new answers (loading will be shown inside submitAllAnswers)
             submitAllAnswers();
         }
         
